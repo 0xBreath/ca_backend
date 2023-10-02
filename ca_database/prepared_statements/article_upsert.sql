@@ -1,0 +1,1 @@
+INSERT INTO articles AS art (key, data) VALUES ($1, $2)

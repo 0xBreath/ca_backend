@@ -1,0 +1,52 @@
+[config]
+default_to_workspace = false
+
+[tasks.sqlx_prepare]
+dependencies = ["install_sqlx_cli", "migrate_database"]
+env = { DATABASE_URL = "postgres://postgres:password@localhost:5432/test" }
+script = "sqlx prepare --merged"
+
+[tasks.reinitialize_database]
+dependencies = ["reset_database", "migrate_database"]
+
+[tasks.reset_database]
+dependencies = ["install_sqlx_cli"]
+env = { DATABASE_URL = "postgres://postgres:password@localhost:5432/test" }
+script = "sqlx database drop && sqlx database create"
+
+[tasks.revert_database]
+dependencies = ["install_sqlx_cli"]
+env = { DATABASE_URL = "postgres://postgres:password@localhost:5432/test" }
+script = "sqlx migrate revert"
+
+[tasks.migrate_database]
+dependencies = ["install_sqlx_cli"]
+env = { DATABASE_URL = "postgres://postgres:password@localhost:5432/test" }
+script = "sqlx migrate run"
+
+[tasks.create_migration]
+dependencies = ["install_sqlx_cli"]
+env = { DATABASE_URL = "postgres://postgres:password@localhost:5432/test" }
+command = "sqlx"
+args = ["migrate", "add", "-r", "${@}"]
+
+[tasks.install_sqlx_cli]
+command = "cargo"
+args = ["install", "sqlx-cli@0.6.3", "--no-default-features", "--features", "native-tls,postgres"]
+
+[tasks.clippy]
+env = { DATABASE_URL = "postgres://postgres:password@localhost:5432/test" }
+command = "cargo"
+args = ["clippy", "${@}"]
+
+# build fee payer image
+[tasks.build_fee_payer]
+script = "docker build --secret id=shipyard_token,src=./secrets/shipyard_token --ssh default -f docker/ca_server.dockerfile -t ./ca_server ."
+
+[tasks.simple_full_stack_up]
+dependencies = ["build_fee_payer", "build_idl"]
+env = { RPC_HOST = { script = ["ipconfig getifaddr en0"] } }
+script = "docker compose -f afp_simple.yml -p afp_simple up --scale fee_payer=3"
+
+[tasks.simple_full_stack_down]
+script = "docker compose -f afp_simple.yml -p afp_simple down"

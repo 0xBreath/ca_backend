@@ -1,0 +1,39 @@
+[package]
+name = "ca_database"
+version = { workspace = true }
+edition = { workspace = true }
+
+[lib]
+crate-type = ["rlib", "cdylib"]
+path = "src/lib.rs"
+
+[dependencies]
+# external dependencies
+anyhow = "1.0.40"
+async-trait = "0.1.51"
+bs58 = "0.4.0"
+config = { version = "^0.13", default-features = false, features = ["yaml"] }
+crossbeam-channel = "0.5.6"
+log = "0.4"
+serde = { version = "^1.0", features = ["derive"] }
+serde-aux = "3"
+tokio = { version = "1.24.2", features = ["full"] }
+postgres-types = { version = "0.2.4", features = ["array-impls", "derive"]}
+tokio-postgres = { version = "=0.7.6", features = ["array-impls"] }
+bb8-postgres = "0.8.1"
+bb8 = "0.8.0"
+
+[dependencies.sqlx]
+version = "0.6.2"
+default-features = false
+features = [
+    "runtime-actix-rustls",
+    "macros",
+    "postgres",
+    "migrate",
+    "uuid"
+]
+
+[dev-dependencies]
+uuid = { version = "^1.2.2", features = ["serde", "v4"] }
+rand = "0.8.5"

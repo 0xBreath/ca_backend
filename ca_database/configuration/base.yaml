@@ -1,0 +1,8 @@
+username: "postgres"
+password: "password"
+port: 5432
+host: "127.0.0.1"
+database_name: "test"
+threads: 1
+#batch_size: 100
+panic_on_db_error: false
