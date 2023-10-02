@@ -12,7 +12,7 @@ Server to deliver consciousness calibrations, images, videos, audio, article/cou
 Connects to a PostgreSQL database to store and retrieve data.
 
 
-## Setup
+## Database
 
 Install `cargo make` to easily manage the server and docker container.
 ```bash
@@ -42,12 +42,21 @@ psql -U postgres
 \q
 ```
 
-Create New Postgres Database
+Initialize Postgres Database
 ```shell
+# brand new database
 cargo make reset_database
+
+# hust update database with migrations
+cargo make update_database
 ```
 
-Just update database with migrations
+## Run Server
 ```shell
-cargo make update_database
+cargo run -r -p ca_server
+```
+
+## Run Admin
+```shell
+cargo run -r -p ca_admin -t <file_type> -f <path>
 ```
