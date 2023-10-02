@@ -1,1 +1,1 @@
-SELECT * FROM accounts WHERE key = $1
+SELECT * FROM articles

@@ -39,7 +39,6 @@ impl DatabaseSettings {
     pub fn new_from_url(connection_url: String) -> Result<DatabaseSettings, config::ConfigError> {
         let settings = config::Config::builder()
             .set_default("connection_string", connection_url)?
-            .set_default("database_name", "ca-default")?
             .build()?;
         settings.try_deserialize::<DatabaseSettings>()
     }

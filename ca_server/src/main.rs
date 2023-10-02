@@ -1,5 +1,5 @@
-#[macro_use]
-extern crate lazy_static;
+// #[macro_use]
+// extern crate lazy_static;
 
 use actix_web::{get, web, App, Error, HttpResponse, HttpServer, Responder, Result};
 use dotenv::dotenv;
@@ -17,7 +17,7 @@ async fn main() -> std::io::Result<()> {
     dotenv().ok();
     init_logger();
 
-    let port = std::env::var("PORT").unwrap_or_else(|_| "8080".to_string());
+    let port = std::env::var("PORT").unwrap_or_else(|_| "3333".to_string());
     let bind_address = format!("0.0.0.0:{}", port);
 
     info!("Starting Server...");
@@ -47,15 +47,16 @@ async fn test() -> impl Responder {
 
 #[get("/articles")]
 async fn get_articles() -> Result<HttpResponse, Error> {
-    let db_url = std::
-    env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+    let db_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+    info!("Init db_url in get_articles: {}", db_url);
+
     // init Postgres client
     let client = PostgresHandler::new_from_url(db_url)
       .await
       .expect("Failed to init PostgresHandler");
     info!("Init client in get_articles");
 
-    // let articles = client.get_articles().await.expect("Failed to get articles from database");
+    let articles = client.get_articles().await.expect("Failed to get articles from database");
 
-    Ok(HttpResponse::Ok().json("Hello World!"))
+    Ok(HttpResponse::Ok().json(articles))
 }
