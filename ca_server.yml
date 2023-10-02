@@ -1,0 +1,15 @@
+name: ca_server
+
+networks:
+  ca_network:
+
+services:
+  fee_payer:
+    restart: always
+    image: ca_backend/ca_server
+    environment:
+      - RUST_LOG=debug
+    ports:
+      - "8080"
+    networks:
+      - ca_network
