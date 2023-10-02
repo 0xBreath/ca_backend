@@ -4,7 +4,6 @@ use crate::client::{
 };
 use crate::configurations::{get_configuration, DatabaseSettings};
 use anyhow::{anyhow, Error};
-use log::*;
 use tokio_postgres::Row;
 
 pub struct PostgresHandler {

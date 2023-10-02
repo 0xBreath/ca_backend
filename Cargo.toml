@@ -1,13 +1,14 @@
 [workspace]
 members = [
     "ca_server",
-    "ca_database"
+    "ca_database",
+    "ca_admin"
 ]
 
 [workspace.package]
 version = "0.1.0"
 authors = ["Consciousness Archive <info@consciousnessarchive.com>"]
-repository = "https://github.com/0xBreath/consciousness-archive-server"
+repository = "https://github.com/0xBreath/ca_backend"
 homepage = "https://consciousnessarchive.com/"
 license = "Apache-2.0"
 edition = "2021"

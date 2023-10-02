@@ -3,10 +3,6 @@ name = "ca_database"
 version = { workspace = true }
 edition = { workspace = true }
 
-[lib]
-crate-type = ["rlib", "cdylib"]
-path = "src/lib.rs"
-
 [dependencies]
 # external dependencies
 anyhow = "1.0.40"

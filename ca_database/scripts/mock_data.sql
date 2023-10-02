@@ -1,2 +1,0 @@
-INSERT INTO accounts (key, slot, write_version, is_startup, lamports, owner, executable, rent_epoch, confirmation, data)
-values ('HTngEb2fxy5hh89HWiKYPPpPPVKesssSqrWqKqgXhgMQ', 1, 2, FALSE, 1111, 'LG1QkBSJSVvNcQoiZHbPkDMM3LjDwynNa7CwZm9X8xB', FALSE, 1234, 'processed', E'\\xDEADBEEF');
