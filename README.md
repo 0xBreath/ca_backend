@@ -60,3 +60,13 @@ cargo run -r -p ca_server
 ```shell
 cargo run -r -p ca_admin -t <file_type> -f <path>
 ```
+
+
+### TODO
+- Postgres bindings for calibration, courses
+- Subscription API
+- Admin upload dashboard
+  - input article/course as .enex file from Evernote, auto conver to .md
+  - input image file, upload to google cloud storage, return url
+  - input article/course title
+  - upsert to database
