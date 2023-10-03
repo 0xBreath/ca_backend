@@ -14,3 +14,7 @@ serde = { version = "1.0", features = ["derive"] }
 dotenv = "0.15.0"
 clap = { version = "3.2.23", features = ["derive", "deprecated"] }
 image = "0.24.7"
+anyhow = "1.0.40"
+postgres-types = { version = "0.2.4", features = ["array-impls", "derive"]}
+tokio-postgres = { version = "=0.7.6", features = ["array-impls"] }
+bincode = "1.3.3"

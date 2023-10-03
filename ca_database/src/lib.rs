@@ -1,7 +1,11 @@
 pub mod client;
-pub mod configurations;
+pub mod settings;
+pub mod statement_builder;
+pub mod types;
 pub mod handler;
 
 pub use client::*;
-pub use configurations::*;
+pub use settings::*;
+pub use statement_builder::*;
+pub use types::*;
 pub use handler::*;

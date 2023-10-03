@@ -26,10 +26,15 @@ env = { DATABASE_URL = "postgres://postgres:password@localhost:5432/test" }
 script = "echo 'y' | sqlx database drop && sqlx database create"
 
 [tasks.wipe_migrations]
-script = "rm -rf migrations/*"
+script = "rm -rf migrations"
 
 [tasks.copy_migrations]
-script = "cp -r ca_database/migrations/* migrations/"
+script = "chmod +x ./copy.sh && ./copy.sh"
+
+[tasks.revert_database]
+dependencies = ["install_sqlx_cli"]
+env = { DATABASE_URL = "postgres://postgres:password@localhost:5432/test" }
+script = "sqlx migrate revert"
 
 [tasks.create_migration]
 dependencies = ["install_sqlx_cli"]
@@ -42,13 +47,8 @@ dependencies = ["install_sqlx_cli"]
 env = { DATABASE_URL = "postgres://postgres:password@localhost:5432/test" }
 script = "sqlx migrate run"
 
-[tasks.revert_database]
-dependencies = ["install_sqlx_cli"]
-env = { DATABASE_URL = "postgres://postgres:password@localhost:5432/test" }
-script = "sqlx migrate revert"
-
 [tasks.reset_database]
-dependencies = ["wipe_migrations", "copy_migrations", "create_database", "create_migration", "migrate_database"]
+dependencies = ["wipe_migrations", "create_database", "create_migration", "copy_migrations", "migrate_database"]
 
 [tasks.update_database]
 dependencies = ["create_database", "migrate_database"]

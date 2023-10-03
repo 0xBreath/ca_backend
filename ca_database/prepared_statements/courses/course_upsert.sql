@@ -1,0 +1,1 @@
+INSERT INTO courses AS course (key, data) VALUES ($1, $2)

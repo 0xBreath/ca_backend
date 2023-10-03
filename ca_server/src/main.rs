@@ -4,6 +4,7 @@ use actix_web::http::header;
 use dotenv::dotenv;
 use log::*;
 use simplelog::{ColorChoice, Config as SimpleLogConfig, TermLogger, TerminalMode};
+use ca_database::client::PostgresClient;
 use ca_database::handler::PostgresHandler;
 
 #[actix_web::main]
@@ -54,11 +55,12 @@ async fn articles() -> Result<HttpResponse, Error> {
     debug!("Get articles endpoint: {}", db_url);
 
     // init Postgres client
-    let client = PostgresHandler::new_from_url(db_url)
+    let client = PostgresClient::new_from_url(db_url)
       .await
       .expect("Failed to init PostgresHandler");
+    let wrapper = PostgresHandler::new(client);
 
-    let articles = client.get_articles().await.expect("Failed to get articles from database");
+    let articles = wrapper.get_articles().await.expect("Failed to get articles from database");
 
     Ok(HttpResponse::Ok().json(articles))
 }

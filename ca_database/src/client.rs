@@ -1,63 +1,67 @@
-use crate::configurations::DatabaseSettings;
+use crate::settings::DatabaseSettings;
 use anyhow::{anyhow, Error};
-use async_trait::async_trait;
 use bb8::Pool;
 use bb8_postgres::PostgresConnectionManager;
 use log::*;
-use serde::{Deserialize, Serialize};
 use tokio_postgres::*;
+use crate::StatementBuilder;
 
 struct PostgresClientWrapper {
     client: Client,
+
     articles_statement: Statement,
+    article_upsert_statement: Statement,
+    article_delete_statement: Statement,
+    article_statement: Statement,
+
+    courses_statement: Statement,
+    course_upsert_statement: Statement,
+    course_delete_statement: Statement,
+    course_statement: Statement,
 }
 
-pub struct SimplePostgresClient {
+pub struct PostgresClient {
     client: PostgresClientWrapper,
 }
 
-impl Eq for TestData {}
-
-#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
-pub struct TestData {
-    pub key: i64,
-    pub data: Vec<u8>,
-}
-
-impl TestData {
-    pub fn new(key: i64, data: &[u8]) -> Self {
-        Self {
-            key,
-            data: data.to_vec(),
-        }
+impl PostgresClient {
+    pub async fn new_from_url(connection_url: String) -> Result<Self, Error> {
+        let client = match DatabaseSettings::new_from_url(connection_url) {
+            Err(err) => return Err(anyhow!("Error loading configuration: {}", err)),
+            Ok(config) => PostgresClient::new(&config).await?,
+        };
+        Ok(client)
     }
 
-    pub fn from_row(row: &Row) -> Result<Self, Error> {
-        Ok(Self {
-            key: row.get("key"),
-            data: row.get("data"),
-        })
-    }
-}
-
-#[async_trait]
-pub trait PostgresClient {
-    async fn articles(&self) -> Result<Vec<Row>, Error>;
-}
-
-impl SimplePostgresClient {
     pub async fn new(config: &DatabaseSettings) -> Result<Self, Error> {
         let pool = Self::connect_to_db(config).await?;
         let client = pool.dedicated_connection().await?;
+
         let articles_statement =
-          Self::build_articles_statement(&client, config).await?;
+          StatementBuilder::articles_statement(&client, config).await?;
+        let article_upsert_statement = StatementBuilder::article_upsert_statement(&client, config).await?;
+        let article_delete_statement = StatementBuilder::article_delete_statement(&client, config).await?;
+        let article_statement = StatementBuilder::article_statement(&client, config).await?;
+
+        let courses_statement =
+          StatementBuilder::courses_statement(&client, config).await?;
+        let course_upsert_statement = StatementBuilder::course_upsert_statement(&client, config).await?;
+        let course_delete_statement = StatementBuilder::course_delete_statement(&client, config).await?;
+        let course_statement = StatementBuilder::course_statement(&client, config).await?;
+
 
         info!("Created SimplePostgresClient");
-
         Ok(Self {
             client: PostgresClientWrapper {
                 client,
                 articles_statement,
+                article_upsert_statement,
+                article_delete_statement,
+                article_statement,
+                courses_statement,
+                course_upsert_statement,
+                course_delete_statement,
+                course_statement,
             },
         })
     }
@@ -99,50 +103,71 @@ impl SimplePostgresClient {
         Ok(pool)
     }
 
-    async fn build_articles_statement(
-        client: &Client,
-        config: &DatabaseSettings,
-    ) -> Result<Statement, Error> {
-        let stmt = include_str!("../prepared_statements/articles.sql");
-        let stmt = client.prepare(stmt).await;
+    // ================ Articles =================
 
-        match stmt {
-            Ok(stmt) => Ok(stmt),
-            Err(error) => {
-                let error = anyhow::anyhow!(
-                    "Failed to prepare articles statement: {} host: {:?}, user: {:?}, config{:?}",
-                    error,
-                    config.host,
-                    config.username,
-                    config
-                );
-                Err(error)
-            }
-        }
-    }
-
-    async fn articles(&self) -> Result<Vec<Row>, Error> {
+    pub async fn articles(&self) -> Result<Vec<Row>, Error> {
         let client = &self.client;
         let statement = &client.articles_statement;
         let client = &client.client;
         let result = client.query(statement, &[]).await;
         result.map_err(|err| anyhow!("Failed to get articles: {}", err))
     }
-}
 
-#[async_trait]
-impl PostgresClient for SimplePostgresClient {
-    async fn articles(&self) -> Result<Vec<Row>, Error> {
-        self.articles().await
+    pub async fn article(&self) -> Result<Vec<Row>, Error> {
+        let client = &self.client;
+        let statement = &client.article_statement;
+        let client = &client.client;
+        let result = client.query(statement, &[]).await;
+        result.map_err(|err| anyhow!("Failed to get article: {}", err))
     }
-}
 
-pub struct PostgresClientBuilder {}
+    pub async fn article_upsert(&self, key: &[u8], data: &[u8]) -> Result<Vec<Row>, Error> {
+        let client = &self.client;
+        let statement = &client.article_upsert_statement;
+        let client = &client.client;
+        let result = client.query(statement, &[&key, &data]).await;
+        result.map_err(|err| anyhow!("Failed to upsert article: {}", err))
+    }
 
-impl PostgresClientBuilder {
-    pub async fn build_simple_postgres_client(
-        config: &DatabaseSettings,
-    ) -> Result<SimplePostgresClient, Error> {
-        SimplePostgresClient::new(config).await
+    pub async fn article_delete(&self, key: String, data: &[u8]) -> Result<Vec<Row>, Error> {
+        let client = &self.client;
+        let statement = &client.article_delete_statement;
+        let client = &client.client;
+        let result = client.query(statement, &[&key, &data]).await;
+        result.map_err(|err| anyhow!("Failed to delete article: {}", err))
+    }
+
+    // ================ Courses =================
+
+    pub async fn courses(&self) -> Result<Vec<Row>, Error> {
+        let client = &self.client;
+        let statement = &client.courses_statement;
+        let client = &client.client;
+        let result = client.query(statement, &[]).await;
+        result.map_err(|err| anyhow!("Failed to get articles: {}", err))
+    }
+
+    pub async fn course(&self) -> Result<Vec<Row>, Error> {
+        let client = &self.client;
+        let statement = &client.course_statement;
+        let client = &client.client;
+        let result = client.query(statement, &[]).await;
+        result.map_err(|err| anyhow!("Failed to get course: {}", err))
+    }
+
+    pub async fn course_upsert(&self, key: String, data: &[u8]) -> Result<Vec<Row>, Error> {
+        let client = &self.client;
+        let statement = &client.course_upsert_statement;
+        let client = &client.client;
+        let result = client.query(statement, &[&key, &data]).await;
+        result.map_err(|err| anyhow!("Failed to upsert course: {}", err))
+    }
+
+    pub async fn course_delete(&self, key: String, data: &[u8]) -> Result<Vec<Row>, Error> {
+        let client = &self.client;
+        let statement = &client.course_delete_statement;
+        let client = &client.client;
+        let result = client.query(statement, &[&key, &data]).await;
+        result.map_err(|err| anyhow!("Failed to delete course: {}", err))
     }
 }

@@ -13,18 +13,6 @@ pub struct DatabaseSettings {
     pub panic_on_db_error: Option<bool>,
 }
 
-pub fn get_configuration() -> Result<DatabaseSettings, config::ConfigError> {
-    let base_path = std::env::current_dir().expect("Could not get current directory");
-    let geyser_pg_path = base_path.join("..");
-    let conf_directory = geyser_pg_path.join("configuration");
-
-    let settings = config::Config::builder()
-        .add_source(config::File::from(conf_directory.join("base.yaml")))
-        .build()?;
-
-    settings.try_deserialize::<DatabaseSettings>()
-}
-
 impl DatabaseSettings {
     pub fn new_with_config_path(
         config_path: PathBuf,

@@ -1,0 +1,1 @@
+DELETE FROM images WHERE key = $1
