@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use tokio_postgres::{Row};
 use anyhow::{Error};
+use log::info;
 use crate::{MessageHasher, MessageHasherTrait};
 
 
@@ -21,7 +22,6 @@ pub struct DbArticle {
 
 impl Article {
   pub fn from_row(row: &Row) -> Result<Article, Error> {
-    let row_key: Vec<u8> = row.get("key");
     let row_title: Vec<u8> = row.get("title");
     let row_data: Vec<u8> = row.get("data");
     let row_image_url: Vec<u8> = row.get("image_url");
@@ -29,6 +29,7 @@ impl Article {
     let title = bincode::deserialize(&row_title).expect("Failed to deserialize article title");
     let data = bincode::deserialize(&row_data).expect("Failed to deserialize article data");
     let image_url = bincode::deserialize(&row_image_url).expect("Failed to deserialize article image_url");
+    info!("image_url: {}", image_url);
 
     Ok(Article {
       title,
