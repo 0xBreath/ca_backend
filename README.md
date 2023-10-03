@@ -1,6 +1,6 @@
 <p align="center">
   <a href="https://consciousnessarchive.com">
-    <img alt="Consciouness Archive" src="./logo.png" width="250" />
+    <img alt="Consciousness Archive" src="./logo.png" />
   </a>
 </p>
 
@@ -61,10 +61,21 @@ cargo run -r -p ca_server
 cargo run -r -p ca_admin -t <file_type> -f <path>
 ```
 
+#### Convert Evernote Article to Markdown
+[evernote2md](https://github.com/wormi4ok/evernote2md)
+```shell
+brew install evernote2md
+
+scripts/evernote2md.sh --input some_evernote.enex
+```
+
 
 ### TODO
-- Postgres bindings for calibration, courses
-- Subscription API
+<h4 style="color: red"> High </h4>
+  - Postgres bindings for calibration, courses
+  - Subscription API
+
+<h4 style="color: orange"> Medium </h4>
 - Admin upload dashboard
   - input article/course as .enex file from Evernote, auto conver to .md
   - input image file, upload to google cloud storage, return url

@@ -62,5 +62,9 @@ async fn articles() -> Result<HttpResponse, Error> {
 
     let articles = wrapper.get_articles().await.expect("Failed to get articles from database");
 
+    // read all files from ./articles
+    // let mut articles = Vec::new();
+    // let paths = fs::read_dir("./articles").unwrap();
+
     Ok(HttpResponse::Ok().json(articles))
 }

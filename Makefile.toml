@@ -29,7 +29,7 @@ script = "echo 'y' | sqlx database drop && sqlx database create"
 script = "rm -rf migrations"
 
 [tasks.copy_migrations]
-script = "chmod +x scripts/copy.sh && scripts/copy.sh"
+script = "chmod +x scripts/copy_migrations.sh && scripts/copy_migrations.sh"
 
 [tasks.revert_database]
 dependencies = ["install_sqlx_cli"]
