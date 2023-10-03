@@ -1,13 +1,10 @@
-mod hash;
-
-use hash::MessageHasher;
-use ca_database::{PostgresClient, PostgresHandler};
+use ca_database::{Article, PostgresClient, PostgresHandler};
 use log::*;
 use simplelog::{ColorChoice, Config as SimpleLogConfig, TermLogger, TerminalMode};
 use std::str::FromStr;
 use clap::{Parser, ArgEnum};
-use crate::hash::MessageHasherTrait;
 use dotenv::dotenv;
+use anyhow::Error;
 
 fn init_logger() {
     TermLogger::init(
@@ -53,45 +50,48 @@ struct Args {
     /// Path to file
     #[clap(short)]
     f: String,
+
+    /// Name of file to display on client
+    #[clap(short)]
+    n: String,
+
+    /// Image associated with file
+    #[clap(short)]
+    i: String,
 }
 
 
 #[tokio::main]
-async fn main() -> Result<(), std::io::Error> {
+async fn main() -> Result<(), Error> {
     dotenv().ok();
     init_logger();
 
     let args = Args::parse();
     let file_type = args.t;
     let path = args.f;
-    info!("File type: {:?}", file_type);
-    info!("path: {:?}", path);
+    let name = args.n;
+    let image = args.i;
 
     // init Postgres client
-    let db_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-    debug!("Get articles endpoint: {}", db_url);
+    let db_url = std::env::var("DATABASE_URL")?;
     let client = PostgresClient::new_from_url(db_url)
       .await
       .expect("Failed to init PostgresClient");
     let wrapper = PostgresHandler::new(client);
 
-    let mut hasher = MessageHasher::new();
+    if let FileType::Article = file_type {
+        let markdown = std::fs::read_to_string(path)?;
+        // remove any empty lines before H1 (first line)
+        let markdown = markdown.trim_start_matches("\n");
 
-    match file_type {
-        FileType::Article => {
-            // TODO: remove any empty lines before H1 (first line)
-            let markdown = std::fs::read_to_string(path).expect("Failed to read article markdown file");
-            debug!("file: {}", markdown);
-            let hash = hasher.hash_article(&markdown);
-            let key = bincode::serialize(&hash).expect("Failed to serialize key");
+        let article = Article {
+            title: name,
+            data: markdown.to_string(),
+            image_url: image,
+        };
 
-            let ser_article =
-              bincode::serialize(&markdown).expect("Failed to serialize article");
-
-            let result = wrapper.upsert_article(&key, &ser_article).await.expect("Failed to upsert article");
-            info!("result: {:?}", result);
-        },
-        _ => {}
+        let result = wrapper.upsert_article(article).await?;
+        info!("result: {:?}", result);
     }
 
     Ok(())

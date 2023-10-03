@@ -4,7 +4,7 @@ use bb8::Pool;
 use bb8_postgres::PostgresConnectionManager;
 use log::*;
 use tokio_postgres::*;
-use crate::StatementBuilder;
+use crate::{DbArticle, StatementBuilder};
 
 struct PostgresClientWrapper {
     client: Client,
@@ -50,7 +50,7 @@ impl PostgresClient {
         let course_statement = StatementBuilder::course_statement(&client, config).await?;
 
 
-        info!("Created SimplePostgresClient");
+        debug!("Created PostgresClientWrapper");
         Ok(Self {
             client: PostgresClientWrapper {
                 client,
@@ -113,27 +113,27 @@ impl PostgresClient {
         result.map_err(|err| anyhow!("Failed to get articles: {}", err))
     }
 
-    pub async fn article(&self) -> Result<Vec<Row>, Error> {
+    pub async fn article(&self, article: DbArticle) -> Result<Vec<Row>, Error> {
         let client = &self.client;
         let statement = &client.article_statement;
         let client = &client.client;
-        let result = client.query(statement, &[]).await;
+        let result = client.query(statement, &[&article.key]).await;
         result.map_err(|err| anyhow!("Failed to get article: {}", err))
     }
 
-    pub async fn article_upsert(&self, key: &[u8], data: &[u8]) -> Result<Vec<Row>, Error> {
+    pub async fn article_upsert(&self, article: DbArticle) -> Result<Vec<Row>, Error> {
         let client = &self.client;
         let statement = &client.article_upsert_statement;
         let client = &client.client;
-        let result = client.query(statement, &[&key, &data]).await;
+        let result = client.query(statement, &[&article.key, &article.title, &article.data, &article.image_url]).await;
         result.map_err(|err| anyhow!("Failed to upsert article: {}", err))
     }
 
-    pub async fn article_delete(&self, key: String, data: &[u8]) -> Result<Vec<Row>, Error> {
+    pub async fn article_delete(&self, article: DbArticle) -> Result<Vec<Row>, Error> {
         let client = &self.client;
         let statement = &client.article_delete_statement;
         let client = &client.client;
-        let result = client.query(statement, &[&key, &data]).await;
+        let result = client.query(statement, &[&article.key]).await;
         result.map_err(|err| anyhow!("Failed to delete article: {}", err))
     }
 

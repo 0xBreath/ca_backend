@@ -15,7 +15,7 @@ impl MessageHasherTrait for MessageHasher {
   fn new() -> Self {
     Self(DefaultHasher::new())
   }
-  
+
   /// Reset contents of hasher for reuse
   fn finish(&mut self) -> u64 {
     self.0.finish()

@@ -1,1 +1,1 @@
-INSERT INTO articles AS article (key, data) VALUES ($1, $2)
+INSERT INTO articles AS article (key, title, data, image_url) VALUES ($1, $2, $3, $4)
