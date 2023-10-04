@@ -70,6 +70,7 @@ async fn articles() -> Result<HttpResponse, Error> {
         let article = bincode::deserialize::<Article>(&db_article).expect("Failed to deserialize article");
         articles.push(article);
     }
+    info!("GET articles: {:?}", &articles.len());
 
     Ok(HttpResponse::Ok().json(articles))
 }

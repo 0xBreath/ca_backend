@@ -3,3 +3,6 @@ default_to_workspace = false
 
 [tasks.server_up]
 script = "cargo run -r -p ca_server"
+
+[tasks.upsert_articles]
+script = "chmod +x scripts/upsert_articles.sh && scripts/upsert_articles.sh"
