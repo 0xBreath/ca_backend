@@ -87,7 +87,7 @@ git pull origin main
 # Create a screen to run the server
 screen -R server
 # Start the server
-cargo run -r -p ca_server
+cargo run -r -p server
 # Exit screen with Ctrl+A then D
 
 # Print logs on the main screen
