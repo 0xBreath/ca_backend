@@ -58,7 +58,7 @@ cargo run -r -p ca_server
 
 ## Run Admin
 ```shell
-cargo run -r -p ca_admin -t <file_type> -f <path>
+cargo run -r -p ca_admin -t <file_type> -f <path> -n <name> -i <image_url>
 ```
 
 #### Convert Evernote Article to Markdown
@@ -85,22 +85,19 @@ git pull origin main
 
 # Create a screen to run the server
 screen -R server
-
 # Start the server
 cargo run -r -p ca_server
-
 # Exit screen with Ctrl+A then D
 
 # Print logs on the main screen
-cat plpl.log
+cat server.log
 # Follow logs on the main screen
-tail -f plpl.log
+tail -f server.log
 
 # To reenter the screen
-screen -r plpl
-
+screen -r server
 # To kill the screen
-screen -X -S plpl quit
+screen -X -S server quit
 ```
 
 ### Create Release Tag
