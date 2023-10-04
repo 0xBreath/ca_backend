@@ -77,9 +77,10 @@ sudo apt install -y git screen build-essential libsasl2-dev pkg-config libfontco
 
 # Install Rust
 curl https://sh.rustup.rs -sSf | sh
+source "$HOME/.cargo/env"
 
 # Set GitHub remote
-git remote add origin https://github.com/0xBreath/ca_backend.git
+git clone https://github.com/0xBreath/ca_backend.git
 git reset --hard origin/main
 git pull origin main
 

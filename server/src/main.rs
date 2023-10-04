@@ -22,7 +22,7 @@ async fn main() -> std::io::Result<()> {
     info!("Starting Server...");
     HttpServer::new(|| {
         let cors = Cors::default()
-          .allowed_origin("http://localhost:3000")
+          .send_wildcard()
           .allowed_methods(vec!["GET", "POST"])
           .allowed_headers(vec![header::AUTHORIZATION, header::ACCEPT])
           .allowed_header(header::CONTENT_TYPE)
