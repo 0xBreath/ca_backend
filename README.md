@@ -79,7 +79,7 @@ sudo apt install -y git screen build-essential libsasl2-dev pkg-config libfontco
 curl https://sh.rustup.rs -sSf | sh
 
 # Set GitHub remote
-git remote add origin https://github.com/LunarEngine/lunar_engine.git
+git remote add origin https://github.com/0xBreath/ca_backend.git
 git reset --hard origin/main
 git pull origin main
 
