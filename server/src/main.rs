@@ -3,16 +3,17 @@ use actix_web::{get, web, App, Error, HttpResponse, HttpServer, Responder, Resul
 use actix_web::http::header;
 use dotenv::dotenv;
 use log::*;
-use simplelog::{ColorChoice, Config as SimpleLogConfig, TermLogger, TerminalMode};
+use simplelog::{ColorChoice, Config as SimpleLogConfig, TermLogger, TerminalMode, WriteLogger, ConfigBuilder, CombinedLogger};
 use std::collections::HashMap;
 use database::{Article};
 use std::fs::File;
 use std::io::Read;
+use std::path::PathBuf;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     dotenv().ok();
-    init_logger();
+    init_logger(&PathBuf::from("server.log".to_string()))?;
 
     let port = std::env::var("PORT").unwrap_or_else(|_| "3333".to_string());
     let bind_address = format!("0.0.0.0:{}", port);
@@ -37,15 +38,22 @@ async fn main() -> std::io::Result<()> {
       .await
 }
 
-fn init_logger() {
-    TermLogger::init(
-        LevelFilter::Info,
-        SimpleLogConfig::default(),
-        TerminalMode::Mixed,
-        ColorChoice::Auto,
-    )
-      .expect("Failed to initialize logger");
+pub fn init_logger(log_file: &PathBuf) -> std::io::Result<()> {
+    CombinedLogger::init(vec![
+        TermLogger::new(
+            LevelFilter::Info,
+            SimpleLogConfig::default(),
+            TerminalMode::Mixed,
+            ColorChoice::Always,
+        ),
+        WriteLogger::new(
+            LevelFilter::Info,
+            ConfigBuilder::new().set_time_format_rfc3339().build(),
+            File::create(log_file)?,
+        ),
+    ]).map_err(|_| std::io::Error::new(std::io::ErrorKind::Other, "Failed to initialize logger"))
 }
+
 
 async fn test() -> impl Responder {
     HttpResponse::Ok().body("Server is running...")

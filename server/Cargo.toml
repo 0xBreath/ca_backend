@@ -28,3 +28,4 @@ time = "0.3.14"
 tungstenite = { version = "0.18.0", features = ["native-tls"] }
 dotenv = "0.15.0"
 bincode = "1.3.3"
+anyhow = "1.0.40"
