@@ -1,1 +1,0 @@
-DELETE FROM audios WHERE key = $1

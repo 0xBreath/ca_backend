@@ -1,1 +1,0 @@
-INSERT INTO audios AS audio (key, data) VALUES ($1, $2)

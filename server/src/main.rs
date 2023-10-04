@@ -4,8 +4,10 @@ use actix_web::http::header;
 use dotenv::dotenv;
 use log::*;
 use simplelog::{ColorChoice, Config as SimpleLogConfig, TermLogger, TerminalMode};
-use ca_database::client::PostgresClient;
-use ca_database::handler::PostgresHandler;
+use std::collections::HashMap;
+use database::{Article};
+use std::fs::File;
+use std::io::Read;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -51,20 +53,23 @@ async fn test() -> impl Responder {
 
 #[get("/articles")]
 async fn articles() -> Result<HttpResponse, Error> {
-    let db_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-    debug!("Get articles endpoint: {}", db_url);
+    let articles_cache = std::env::current_dir().unwrap().to_str().unwrap().to_string() + "/cache/articles.bin";
+    debug!("articles_cache: {}", &articles_cache);
 
-    // init Postgres client
-    let client = PostgresClient::new_from_url(db_url)
-      .await
-      .expect("Failed to init PostgresHandler");
-    let wrapper = PostgresHandler::new(client);
+    let mut file = File::open(&articles_cache)
+      .expect("Failed to open articles cache");
+    // Read the contents into a Vec<u8>
+    let mut articles_buf = Vec::new();
+    file.read_to_end(&mut articles_buf).
+      expect("Failed to read articles cache");
 
-    let articles = wrapper.get_articles().await.expect("Failed to get articles from database");
-
-    // read all files from ./articles
-    // let mut articles = Vec::new();
-    // let paths = fs::read_dir("./articles").unwrap();
+    let mut db_articles = bincode::deserialize::<HashMap<u64, Vec<u8>>>(&articles_buf).expect("Failed to read articles cache");
+    let mut articles = Vec::new();
+    // for each db_article in the hashmap, deserialize into Article and collect to vector
+    for (_, db_article) in db_articles.drain() {
+        let article = bincode::deserialize::<Article>(&db_article).expect("Failed to deserialize article");
+        articles.push(article);
+    }
 
     Ok(HttpResponse::Ok().json(articles))
 }

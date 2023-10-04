@@ -1,1 +1,0 @@
-SELECT * FROM images WHERE key = $1

@@ -1,1 +1,0 @@
-SELECT * FROM video WHERE key = $1

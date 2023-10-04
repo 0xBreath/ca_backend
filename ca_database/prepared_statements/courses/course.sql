@@ -1,1 +1,0 @@
-SELECT * FROM courses WHERE key = $1

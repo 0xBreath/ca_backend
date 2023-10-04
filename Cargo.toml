@@ -1,8 +1,8 @@
 [workspace]
 members = [
-    "ca_server",
-    "ca_database",
-    "ca_admin"
+    "server",
+    "database",
+    "admin"
 ]
 
 [workspace.package]

@@ -1,1 +1,0 @@
-DELETE FROM videos WHERE key = $1
