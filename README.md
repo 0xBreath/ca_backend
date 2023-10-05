@@ -73,7 +73,7 @@ scripts/evernote2md.sh --input some_evernote.enex
 ## Remote Deploy
 ```bash
 # GitHub, manage terminal processes, and Cargo build dependencies
-sudo apt install -y git screen build-essential libsasl2-dev pkg-config libfontconfig libfontconfig1-dev
+sudo apt install -y git screen build-essential libssl-dev libsasl2-dev pkg-config libfontconfig libfontconfig1-dev
 
 # Install Rust
 curl https://sh.rustup.rs -sSf | sh
@@ -113,6 +113,10 @@ git push origin tag-name
 
 ### TODO
 <h4 style="color: red"> High </h4>
+  - GCP load balancer to route HTTPS traffic to server
+    - [guide](https://cloud.google.com/load-balancing/docs/https/setup-global-ext-https-compute)
+    - look into github actions to auto deploy to GCP
+
   - Postgres bindings for calibration, courses
   - Subscription API
 
