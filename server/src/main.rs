@@ -24,6 +24,7 @@ async fn main() -> std::io::Result<()> {
         let cors = Cors::default()
           .send_wildcard()
           .allowed_origin("http://localhost:3000")
+          .allowed_origin("https://consciousnessarchive.com")
           .allowed_methods(vec!["GET", "POST"])
           .allowed_headers(vec![header::AUTHORIZATION, header::ACCEPT, header::CONTENT_TYPE])
           .max_age(3600);
