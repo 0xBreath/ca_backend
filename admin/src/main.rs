@@ -8,6 +8,7 @@ use std::str::FromStr;
 use clap::{Parser, ArgEnum};
 use dotenv::dotenv;
 use anyhow::{anyhow, Error};
+use serde::Deserialize;
 
 
 fn init_logger() {
@@ -22,11 +23,7 @@ fn init_logger() {
 
 #[derive(ArgEnum, Debug, Clone)]
 enum FileType {
-    Article,
-    Course,
-    Image,
-    Video,
-    Audio,
+    Articles,
     Calibrations,
 }
 
@@ -35,15 +32,18 @@ impl FromStr for FileType {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "article" => Ok(FileType::Article),
-            "course" => Ok(FileType::Course),
-            "image" => Ok(FileType::Image),
-            "video" => Ok(FileType::Video),
-            "audio" => Ok(FileType::Audio),
+            "articles" => Ok(FileType::Articles),
             "calibrations" => Ok(FileType::Calibrations),
             _ => Err(format!("{} is not a valid file type", s)),
         }
     }
+}
+
+#[derive(Deserialize, Debug)]
+struct ArticleRaw {
+    title: String,
+    file_name: String,
+    image_url: String,
 }
 
 
@@ -56,14 +56,6 @@ struct Args {
     /// Path to file
     #[clap(short)]
     f: String,
-
-    /// Name of file to display on client
-    #[clap(short)]
-    n: Option<String>,
-
-    /// Image associated with file
-    #[clap(short)]
-    i: Option<String>,
 }
 
 
@@ -75,39 +67,40 @@ async fn main() -> Result<(), Error> {
     let args = Args::parse();
     let file_type = args.t;
     let path = args.f;
-    let name = args.n;
-    let image = args.i;
 
     match file_type {
-        FileType::Article => {
+        FileType::Articles => {
+            // existing articles cache
             let articles_cache = std::env::current_dir().unwrap().to_str().unwrap().to_string() + "/cache/articles.bin";
-            info!("articles_cache: {}", &articles_cache);
-
-            let markdown = std::fs::read_to_string(path)?;
-            // remove any empty lines before H1 (first line)
-            let markdown = markdown.trim_start_matches("\n");
-
-            let article = Article {
-                title: name.expect("Article name not provided"),
-                data: markdown.to_string(),
-                image_url: image.expect("Article image not provided"),
-            };
-
             let mut file = File::open(&articles_cache)
               .expect("Failed to open articles cache");
-            // Read the contents into a Vec<u8>
             let mut articles_buf = Vec::new();
             file.read_to_end(&mut articles_buf).
               expect("Failed to read articles cache");
 
-            let new_article = article.ser()?;
+
+            let mut new_file = File::open(path).expect("Failed to open new articles file");
+            let mut new_buf = String::new();
+            new_file.read_to_string(&mut new_buf).expect("Failed to read new articles file");
+            let new_articles_raw = serde_json::from_str::<Vec<ArticleRaw>>(&new_buf).expect("Failed to deserialize new articles");
+
+            let mut new_articles = Vec::new();
+            for article in new_articles_raw.into_iter() {
+                let file_path = std::env::current_dir().unwrap().to_str().unwrap().to_string() + "/data/articles/" + &article.file_name;
+                let markdown = std::fs::read_to_string(file_path)?.trim_start_matches('\n').to_string();
+                new_articles.push(Article {
+                    title: article.title,
+                    data: markdown,
+                    image_url: article.image_url,
+                });
+            }
+
             match bincode::deserialize::<HashMap<u64, Vec<u8>>>(&articles_buf) {
                 Ok(mut db_articles) => {
-                    // append new article to articles cache
-                    match db_articles.insert(new_article.key, new_article.value) {
-                        Some(_) => info!("Updated article to articles cache"),
-                        None => info!("Added new article to articles cache"),
-                    };
+                    for new_article in new_articles.into_iter() {
+                        let bytes = new_article.ser()?;
+                        db_articles.insert(bytes.key, bytes.value);
+                    }
 
                     let ser_articles = bincode::serialize(&db_articles)?;
                     match std::fs::write(articles_cache, ser_articles) {
@@ -122,7 +115,10 @@ async fn main() -> Result<(), Error> {
                     // if error is Io(Kind(UnexpectedEof)), then write to file as new hashmap
                     if e.to_string().contains("unexpected end of file") {
                         let mut db_articles = HashMap::new();
-                        db_articles.insert(new_article.key, new_article.value);
+                        for new_article in new_articles.into_iter() {
+                            let bytes = new_article.ser()?;
+                            db_articles.insert(bytes.key, bytes.value);
+                        }
                         let ser_articles = bincode::serialize(&db_articles)?;
                         std::fs::write(articles_cache, ser_articles)?;
                     } else {
@@ -174,9 +170,6 @@ async fn main() -> Result<(), Error> {
                     }
                 }
             }
-        },
-        _ => {
-
         }
     }
 

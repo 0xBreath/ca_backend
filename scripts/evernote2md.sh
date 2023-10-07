@@ -24,7 +24,6 @@ EOF
 
 while [[ -n $1 ]]; do
   if [[ ${1:0:1} = - ]]; then
-    # validator.sh-only options
     if [[ $1 = --input ]]; then
       input="$2"
       shift 2
@@ -45,4 +44,4 @@ fi
 
 
 WORKDIR="$(git rev-parse --show-toplevel)"
-evernote2md "$HOME"/LIFE/C-Archive/Evernote_enex/"$input" "$WORKDIR"/articles
+evernote2md "$HOME"/LIFE/C-Archive/Evernote_enex/"$input" "$WORKDIR"/data/articles
