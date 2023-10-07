@@ -5,7 +5,7 @@ use dotenv::dotenv;
 use log::*;
 use simplelog::{ColorChoice, Config as SimpleLogConfig, TermLogger, TerminalMode, WriteLogger, ConfigBuilder, CombinedLogger};
 use std::collections::HashMap;
-use database::{Article};
+use database::{Article, Calibration};
 use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
@@ -32,6 +32,7 @@ async fn main() -> std::io::Result<()> {
         App::new()
           .wrap(cors)
           .service(articles)
+          .service(calibrations)
           .route("/", web::get().to(test))
     })
       .bind(bind_address)?
@@ -62,19 +63,18 @@ async fn test() -> impl Responder {
 
 #[get("/articles")]
 async fn articles() -> Result<HttpResponse, Error> {
-    let articles_cache = std::env::current_dir().unwrap().to_str().unwrap().to_string() + "/cache/articles.bin";
-    debug!("articles_cache: {}", &articles_cache);
+    let cache_path = std::env::current_dir().unwrap().to_str().unwrap().to_string() + "/cache/articles.bin";
 
-    let mut file = File::open(&articles_cache)
+    let mut cache_file = File::open(&cache_path)
       .expect("Failed to open articles cache");
     // Read the contents into a Vec<u8>
-    let mut articles_buf = Vec::new();
-    file.read_to_end(&mut articles_buf).
+    let mut cache_buf = Vec::new();
+    cache_file.read_to_end(&mut cache_buf).
       expect("Failed to read articles cache");
 
-    let mut db_articles = bincode::deserialize::<HashMap<u64, Vec<u8>>>(&articles_buf).expect("Failed to read articles cache");
+    let mut db_articles = bincode::deserialize::<HashMap<u64, Vec<u8>>>(&cache_buf).expect("Failed to read articles cache");
     let mut articles = Vec::new();
-    // for each db_article in the hashmap, deserialize into Article and collect to vector
+    // for each DbArticle in the hashmap, deserialize into Article and collect to vector
     for (_, db_article) in db_articles.drain() {
         let article = bincode::deserialize::<Article>(&db_article).expect("Failed to deserialize article");
         articles.push(article);
@@ -82,4 +82,27 @@ async fn articles() -> Result<HttpResponse, Error> {
     info!("GET articles: {:?}", &articles.len());
 
     Ok(HttpResponse::Ok().json(articles))
+}
+
+#[get("/calibrations")]
+async fn calibrations() -> Result<HttpResponse, Error> {
+    let cache_path = std::env::current_dir().unwrap().to_str().unwrap().to_string() + "/cache/calibrations.bin";
+
+    let mut cache_file = File::open(&cache_path)
+      .expect("Failed to open calibrations cache");
+    // Read the contents into a Vec<u8>
+    let mut cache_buf = Vec::new();
+    cache_file.read_to_end(&mut cache_buf).
+      expect("Failed to read calibrations cache");
+
+    let mut db_calibrations = bincode::deserialize::<HashMap<u64, Vec<u8>>>(&cache_buf).expect("Failed to read calibrations cache");
+    let mut calibrations = Vec::new();
+    // for each DbCalibration in the hashmap, deserialize into Calibration and collect to vector
+    for (_, db_calibration) in db_calibrations.drain() {
+        let calibration = bincode::deserialize::<Calibration>(&db_calibration).expect("Failed to deserialize calibration");
+        calibrations.push(calibration);
+    }
+    info!("GET calibrations: {:?}", &calibrations.len());
+
+    Ok(HttpResponse::Ok().json(calibrations))
 }

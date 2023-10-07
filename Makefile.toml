@@ -1,8 +1,14 @@
 [config]
 default_to_workspace = false
 
-[tasks.server_up]
+[tasks.server]
 script = "cargo run -r -p ca_server"
 
 [tasks.upsert_articles]
-script = "chmod +x scripts/upsert_articles.sh && scripts/upsert_articles.sh"
+script = "rm -rf cache/articles.bin && touch cache/articles.bin && chmod +x scripts/upsert_articles.sh && scripts/upsert_articles.sh"
+
+[tasks.upsert_calibrations]
+script = "rm -rf cache/calibrations.bin && touch cache/calibrations.bin && chmod +x scripts/upsert_calibrations.sh && scripts/upsert_calibrations.sh"
+
+[tasks.reset_database]
+dependencies = ["upsert_articles", "upsert_calibrations"]

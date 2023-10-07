@@ -224,6 +224,7 @@ dependencies = [
  "log",
  "postgres-types",
  "serde",
+ "serde_json",
  "simplelog",
  "tokio",
  "tokio-postgres",

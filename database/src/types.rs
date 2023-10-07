@@ -3,6 +3,8 @@ use anyhow::{Error};
 use crate::{MessageHasher, MessageHasherTrait};
 
 
+// ==================== Article ====================
+
 #[derive(Clone, PartialEq, Debug, Eq, Serialize, Deserialize)]
 pub struct Article {
   pub title: String,
@@ -37,3 +39,48 @@ impl Article {
     })
   }
 }
+
+// ==================== Calibration ====================
+
+#[derive(Clone, PartialEq, Debug, Eq, Serialize, Deserialize)]
+pub struct Calibration {
+  pub title: String,
+  pub calibration: u32,
+  pub tags: Vec<String>,
+  pub image_url: String,
+  pub description: String,
+}
+
+#[derive(Clone, PartialEq, Debug, Eq, Serialize, Deserialize)]
+pub struct DbCalibration {
+  pub key: u64,
+  pub value: Vec<u8>,
+}
+
+impl Calibration {
+  pub fn de(calibration: &[u8]) -> Result<Calibration, Error> {
+    let calibration = bincode::deserialize::<Calibration>(calibration).expect("Failed to deserialize calibration");
+
+    Ok(Calibration {
+      title: calibration.title,
+      calibration: calibration.calibration,
+      tags: calibration.tags,
+      image_url: calibration.image_url,
+      description: calibration.description,
+    })
+  }
+
+  pub fn ser(&self) -> Result<DbCalibration, Error> {
+    let key = MessageHasher::new().hash_calibration(&self.title, self.calibration);
+    let value = bincode::serialize(&self).expect("Failed to serialize calibration");
+
+    Ok(DbCalibration {
+      key,
+      value
+    })
+  }
+}
+
+
+
+
