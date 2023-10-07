@@ -9,3 +9,7 @@ cargo run -r -p admin -- \
 cargo run -r -p admin -- \
   -t calibrations \
   -f "$WORKDIR"/data/calibrations/sports.json
+
+cargo run -r -p admin -- \
+  -t calibrations \
+  -f "$WORKDIR"/data/calibrations/teachings.json
