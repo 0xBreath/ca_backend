@@ -42,6 +42,7 @@ impl FromStr for FileType {
 #[derive(Deserialize, Debug)]
 struct ArticleRaw {
     title: String,
+    tags: Vec<String>,
     file_name: String,
     image_url: String,
 }
@@ -90,6 +91,7 @@ async fn main() -> Result<(), Error> {
                 let markdown = std::fs::read_to_string(file_path)?.trim_start_matches('\n').to_string();
                 new_articles.push(Article {
                     title: article.title,
+                    tags: article.tags,
                     data: markdown,
                     image_url: article.image_url,
                 });

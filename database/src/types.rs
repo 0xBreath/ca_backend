@@ -8,6 +8,7 @@ use crate::{MessageHasher, MessageHasherTrait};
 #[derive(Clone, PartialEq, Debug, Eq, Serialize, Deserialize)]
 pub struct Article {
   pub title: String,
+  pub tags: Vec<String>,
   pub data: String,
   pub image_url: String,
 }
@@ -24,6 +25,7 @@ impl Article {
 
     Ok(Article {
       title: article.title,
+      tags: article.tags,
       data: article.data,
       image_url: article.image_url,
     })
