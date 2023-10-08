@@ -13,3 +13,7 @@ cargo run -r -p admin -- \
 cargo run -r -p admin -- \
   -t calibrations \
   -f "$WORKDIR"/data/calibrations/books.json
+
+cargo run -r -p admin -- \
+  -t calibrations \
+  -f "$WORKDIR"/data/calibrations/people.json

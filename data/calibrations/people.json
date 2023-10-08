@@ -2,104 +2,107 @@
   {
     "title": "Jesus",
     "calibration": 1000,
+    "tags": ["All", "People"],
     "description": "The Son of God.",
-    "image_url": "https://i.imgur.com/2YVtZ0j.jpg"
+    "image_url": "https://storage.googleapis.com/consciousness-archive/images/calibrations/people/Jesus.png"
   },
   {
     "title": "Buddha",
     "calibration": 1000,
+    "tags": ["All", "People"],
     "description": "The Enlightened One.",
-    "image_url": "https://i.imgur.com/2YVtZ0j.jpg"
-  },
-  {
-    "title": "Ahura Mazda",
-    "calibration": 1000,
-    "description": "The name for God in Zoroastrianism.",
-    "image_url": "https://i.imgur.com/2YVtZ0j.jpg"
+    "image_url": "https://storage.googleapis.com/consciousness-archive/images/calibrations/people/Buddha.png"
   },
   {
     "title": "Krishna",
     "calibration": 1000,
+    "tags": ["All", "People"],
     "description": "Krishna is the Hindu god of compassion, protection, and love.",
-    "image_url": "https://i.imgur.com/2YVtZ0j.jpg"
-  },
-  {
-    "title": "Om",
-    "calibration": 975,
-    "description": "Name of God.",
-    "image_url": "https://i.imgur.com/2YVtZ0j.jpg"
-  },
-  {
-    "title": "Huang Po",
-    "calibration": 960,
-    "description": "Zen Buddhist Master.",
-    "image_url": "https://i.imgur.com/2YVtZ0j.jpg"
+    "image_url": "https://storage.googleapis.com/consciousness-archive/images/calibrations/people/Krishna.png"
   },
   {
     "title": "Moses",
     "calibration": 910,
+    "tags": ["All", "People"],
     "description": "Biblical figure who led the Israelites out of Egypt.",
-    "image_url": "https://i.imgur.com/2YVtZ0j.jpg"
+    "image_url": "https://storage.googleapis.com/consciousness-archive/images/calibrations/people/Moses.png"
   },
   {
     "title": "Apostle John",
     "calibration": 910,
+    "tags": ["All", "People"],
     "description": "Christian Apostle of Jesus.",
-    "image_url": "https://i.imgur.com/2YVtZ0j.jpg"
+    "image_url": "https://storage.googleapis.com/consciousness-archive/images/calibrations/people/Apostle_John.png"
   },
   {
     "title": "Mahatma Gandhi",
     "calibration": 760,
+    "tags": ["All", "People"],
     "description": "Indian Hindu Sage who led India to independence from the British Empire.",
-    "image_url": "https://i.imgur.com/2YVtZ0j.jpg"
+    "image_url": "https://storage.googleapis.com/consciousness-archive/images/calibrations/people/Mahatma_Gandhi.png"
   },
   {
     "title": "Mother Teresa",
     "calibration": 710,
+    "tags": ["All", "People"],
     "description": "Catholic Missionary who devoted her life to helping the poor and sick in Calcutta, India.",
-    "image_url": "https://i.imgur.com/2YVtZ0j.jpg"
+    "image_url": "https://storage.googleapis.com/consciousness-archive/images/calibrations/people/Mother_Teresa.png"
   },
   {
     "title": "Pope John Paul II",
     "calibration": 570,
+    "tags": ["All", "People"],
     "description": "Head of the Catholic Church and sovereign of the Vatican City State from 1978 until his death in 2005.",
-    "image_url": "https://i.imgur.com/2YVtZ0j.jpg"
+    "image_url": "https://storage.googleapis.com/consciousness-archive/images/calibrations/people/Pope_John_Paul_II.png"
   },
   {
-    "title": "Plotinus",
-    "calibration": 730,
-    "description": "Platonist philosopher, born and raised in Roman Egypt.",
-    "image_url": "https://i.imgur.com/2YVtZ0j.jpg"
-  },
-  {
-    "title": "Sri Adi Sankaracharya",
+    "title": "Sri Adi Shankara",
     "calibration": 710,
+    "tags": ["All", "People"],
     "description": "Hindu philosopher who consolidated the doctrine of Advaita Vedanta.",
-    "image_url": "https://i.imgur.com/2YVtZ0j.jpg"
+    "image_url": "https://storage.googleapis.com/consciousness-archive/images/calibrations/people/Sri_Adi_Shankara.png"
   },
   {
     "title": "Chuang Tzu",
     "calibration": 890,
+    "tags": ["All", "People"],
     "description": "He is credited with writing, a work known by his name, the Zhuangzi, a foundational texts of Taoism.",
-    "image_url": "https://i.imgur.com/2YVtZ0j.jpg"
+    "image_url": "https://storage.googleapis.com/consciousness-archive/images/calibrations/people/Chuang_Tzu.png"
   },
   {
     "title": "Socrates",
     "calibration": 540,
+    "tags": ["All", "People"],
     "description": "Socrates was an ancient Greek philosopher who lived in Athens from 469/470 to 399 BCE. He is renowned for his pioneering approach to philosophy through the Socratic method, a form of inquiry that involved asking and answering questions to stimulate critical thinking and self-examination. Socrates' commitment to questioning societal norms, his pursuit of moral and intellectual truth, and his influence on subsequent philosophers, such as Plato and Aristotle, have made him a foundational figure in the history of Western philosophy.",
-    "image_url": "https://i.imgur.com/2YVtZ0j.jpg"
+    "image_url": "https://storage.googleapis.com/consciousness-archive/images/calibrations/people/Socrates.png"
   },
   {
-    "title": "Rudolf Steiner",
-    "calibration": 475,
-    "description": "Rudolf Steiner (1861-1925) was an Austrian philosopher, educator, and founder of anthroposophy, a spiritual and philosophical movement. He believed in a holistic approach to education that emphasized the development of the physical, emotional, and spiritual aspects of a child's being. Steiner's work also encompassed diverse fields, including architecture, agriculture, and medicine, and his teachings continue to influence various educational and cultural movements worldwide.",
-    "image_url": "https://i.imgur.com/2YVtZ0j.jpg"
+    "title": "Isaac Newton",
+    "calibration": 499,
+    "tags": ["All", "People"],
+    "description": "Isaac Newton was a pioneering mathematician, physicist, and astronomer who not only formulated the laws of motion and universal gravitation but also co-discovered calculus independently, revolutionizing both mathematics and physics in the process. His profound insights continue to shape our understanding of the physical world and mathematical analysis today..",
+    "image_url": "https://storage.googleapis.com/consciousness-archive/images/calibrations/people/Isaac_Newton.png"
+  },
+  {
+    "title": "Descartes",
+    "calibration": 499,
+    "tags": ["All", "People"],
+    "description": "René Descartes, a 17th-century French philosopher and mathematician, is known for his famous statement \"I think, therefore I am,\" which exemplifies his commitment to doubt everything in pursuit of certain knowledge. His work in both philosophy and mathematics significantly influenced the development of modern Western philosophy and the scientific method.",
+    "image_url": "https://storage.googleapis.com/consciousness-archive/images/calibrations/people/Descartes.png"
+  },
+  {
+    "title": "Albert Einstein",
+    "calibration": 499,
+    "tags": ["All", "People"],
+    "description": "\nAlbert Einstein was a renowned theoretical physicist who developed the theory of relativity, which revolutionized our understanding of space, time, and gravity. His famous equation, E=mc^2, demonstrated the equivalence of mass and energy, and his work profoundly influenced modern physics and our comprehension of the universe.",
+    "image_url": "https://storage.googleapis.com/consciousness-archive/images/calibrations/people/Albert_Einstein.png"
   },
   {
     "title": "Karl Marx",
     "calibration": 130,
+    "tags": ["All", "People"],
     "description": "Karl Marx (1818-1883) was a German philosopher, economist, and political theorist who co-authored \"The Communist Manifesto\" with Friedrich Engels and laid the groundwork for modern communism. Marx's theories, collectively known as Marxism, focused on class struggle and the critique of capitalism. He argued that in a capitalist society, the working class (proletariat) would eventually rise against the capitalist class (bourgeoisie), leading to a classless, socialist society where the means of production were collectively owned. Marx's ideas have had a profound influence on political and economic thought and have played a pivotal role in shaping the course of history and political movements.",
-    "image_url": "https://i.imgur.com/2YVtZ0j.jpg"
+    "image_url": "https://storage.googleapis.com/consciousness-archive/images/calibrations/people/Karl_Marx.png"
   }
 ]
 
