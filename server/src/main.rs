@@ -5,7 +5,7 @@ use dotenv::dotenv;
 use log::*;
 use simplelog::{ColorChoice, Config as SimpleLogConfig, TermLogger, TerminalMode, WriteLogger, ConfigBuilder, CombinedLogger};
 use std::collections::HashMap;
-use database::{Article, Calibration};
+use database::{Article, Calibration, Testimonial};
 use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
@@ -33,6 +33,7 @@ async fn main() -> std::io::Result<()> {
           .wrap(cors)
           .service(articles)
           .service(calibrations)
+          .service(testimonials)
           .route("/", web::get().to(test))
     })
       .bind(bind_address)?
@@ -105,4 +106,27 @@ async fn calibrations() -> Result<HttpResponse, Error> {
     info!("GET calibrations: {:?}", &calibrations.len());
 
     Ok(HttpResponse::Ok().json(calibrations))
+}
+
+#[get("/testimonials")]
+async fn testimonials() -> Result<HttpResponse, Error> {
+    let cache_path = std::env::current_dir().unwrap().to_str().unwrap().to_string() + "/cache/testimonials.bin";
+
+    let mut cache_file = File::open(&cache_path)
+      .expect("Failed to open testimonials cache");
+    // Read the contents into a Vec<u8>
+    let mut cache_buf = Vec::new();
+    cache_file.read_to_end(&mut cache_buf).
+      expect("Failed to read testimonials cache");
+
+    let mut db_testimonials = bincode::deserialize::<HashMap<u64, Vec<u8>>>(&cache_buf).expect("Failed to read testimonials cache");
+    let mut testimonials = Vec::new();
+    // for each DbCalibration in the hashmap, deserialize into Calibration and collect to vector
+    for (_, db_testimonial) in db_testimonials.drain() {
+        let testimonial = bincode::deserialize::<Testimonial>(&db_testimonial).expect("Failed to deserialize testimonial");
+        testimonials.push(testimonial);
+    }
+    info!("GET testimonials: {:?}", &testimonials.len());
+
+    Ok(HttpResponse::Ok().json(testimonials))
 }

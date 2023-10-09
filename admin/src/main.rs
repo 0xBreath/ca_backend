@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
-use database::{Article, Calibration};
+use database::{Article, Calibration, Testimonial};
 use log::*;
 use simplelog::{ColorChoice, Config as SimpleLogConfig, TermLogger, TerminalMode};
 use std::str::FromStr;
@@ -25,6 +25,7 @@ fn init_logger() {
 enum FileType {
     Articles,
     Calibrations,
+    Testimonials,
 }
 
 impl FromStr for FileType {
@@ -34,6 +35,7 @@ impl FromStr for FileType {
         match s {
             "articles" => Ok(FileType::Articles),
             "calibrations" => Ok(FileType::Calibrations),
+            "testimonials" => Ok(FileType::Testimonials),
             _ => Err(format!("{} is not a valid file type", s)),
         }
     }
@@ -171,6 +173,50 @@ async fn main() -> Result<(), Error> {
                         return Err(anyhow!("Failed to deserialize calibrations cache: {}", e));
                     }
                 }
+            }
+        },
+        FileType::Testimonials => {
+                // Read the contents of the calibrations cache into a Vec<u8>
+                let cache_path = std::env::current_dir().unwrap().to_str().unwrap().to_string() + "/cache/testimonials.bin";
+                let mut cache_file = File::open(&cache_path)
+                  .expect("Failed to open testimonials cache");
+                let mut cache_buf = Vec::new();
+                cache_file.read_to_end(&mut cache_buf).
+                  expect("Failed to read testimonials cache");
+
+                // Read the contents of the new testimonials file into a Vec<u8>
+                let mut new_file = File::open(path).expect("Failed to open new testimonials file");
+                let mut new_buf = String::new();
+                new_file.read_to_string(&mut new_buf).expect("Failed to read new testimonials file");
+                let new_testimonials = serde_json::from_str::<Vec<Testimonial>>(&new_buf).expect("Failed to deserialize new testimonials");
+
+                match bincode::deserialize::<HashMap<u64, Vec<u8>>>(&cache_buf) {
+                    Ok(mut db_testimonials) => {
+                        // append new calibration to cache
+                        for new_testimonial in new_testimonials.into_iter() {
+                            let bytes = new_testimonial.ser()?;
+                            db_testimonials.insert(bytes.key, bytes.value);
+                        }
+
+                        let ser_testimonials = bincode::serialize(&db_testimonials)?;
+                        std::fs::write(cache_path, ser_testimonials).expect("Failed to write to testimonials cache");
+                        info!("Wrote testimonials to existing cache");
+                    },
+                    Err(e) => {
+                        // if error is Io(Kind(UnexpectedEof)), then write to file as new hashmap
+                        if e.to_string().contains("unexpected end of file") {
+                            let mut db_testimonials = HashMap::new();
+                            for new_testimonial in new_testimonials.into_iter() {
+                                let bytes = new_testimonial.ser()?;
+                                db_testimonials.insert(bytes.key, bytes.value);
+                            }
+                            let ser_testimonials = bincode::serialize(&db_testimonials)?;
+                            std::fs::write(cache_path, ser_testimonials)?;
+                            info!("Wrote testimonials to new cache");
+                        } else {
+                            return Err(anyhow!("Failed to deserialize testimonials cache: {}", e));
+                        }
+                    }
             }
         }
     }

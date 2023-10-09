@@ -10,6 +10,7 @@ pub trait MessageHasherTrait {
   fn finish(&mut self) -> u64;
   fn hash_article(&mut self, article: &str) -> u64;
   fn hash_calibration(&mut self, title: &str, calibration: u32) -> u64;
+  fn hash_testimonial(&mut self, image_url: &str, testimonial: &str) -> u64;
 }
 
 impl MessageHasherTrait for MessageHasher {
@@ -32,6 +33,13 @@ impl MessageHasherTrait for MessageHasher {
     self.0 = DefaultHasher::new();
     title.hash(&mut self.0);
     calibration.hash(&mut self.0);
+    self.finish()
+  }
+
+  fn hash_testimonial(&mut self, image_url: &str, testimonial: &str) -> u64 {
+    self.0 = DefaultHasher::new();
+    image_url.hash(&mut self.0);
+    testimonial.hash(&mut self.0);
     self.finish()
   }
 }

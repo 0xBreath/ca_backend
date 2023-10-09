@@ -10,5 +10,8 @@ script = "rm -rf cache/articles.bin && touch cache/articles.bin && chmod +x scri
 [tasks.upsert_calibrations]
 script = "rm -rf cache/calibrations.bin && touch cache/calibrations.bin && chmod +x scripts/upsert_calibrations.sh && scripts/upsert_calibrations.sh"
 
+[tasks.upsert_testimonials]
+script = "rm -rf cache/testimonials.bin && touch cache/testimonials.bin && chmod +x scripts/upsert_testimonials.sh && scripts/upsert_testimonials.sh"
+
 [tasks.reset_database]
-dependencies = ["upsert_articles", "upsert_calibrations"]
+dependencies = ["upsert_articles", "upsert_calibrations", "upsert_testimonials"]

@@ -83,6 +83,41 @@ impl Calibration {
   }
 }
 
+// ==================== Testimonial ====================
+
+#[derive(Clone, PartialEq, Debug, Eq, Serialize, Deserialize)]
+pub struct Testimonial {
+  pub image_url: String,
+  pub testimonial: String,
+}
+
+#[derive(Clone, PartialEq, Debug, Eq, Serialize, Deserialize)]
+pub struct DbTestimonial {
+  pub key: u64,
+  pub value: Vec<u8>,
+}
+
+impl Testimonial {
+  pub fn de(testimonial: &[u8]) -> Result<Testimonial, Error> {
+    let testimonial = bincode::deserialize::<Testimonial>(testimonial).expect("Failed to deserialize testimonial");
+
+    Ok(Testimonial {
+      image_url: testimonial.image_url,
+      testimonial: testimonial.testimonial,
+    })
+  }
+
+  pub fn ser(&self) -> Result<DbTestimonial, Error> {
+    let key = MessageHasher::new().hash_testimonial(&self.image_url, &self.testimonial);
+    let value = bincode::serialize(&self).expect("Failed to serialize testimonial");
+
+    Ok(DbTestimonial {
+      key,
+      value
+    })
+  }
+}
+
 
 
 
