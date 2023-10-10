@@ -47,6 +47,7 @@ struct ArticleRaw {
     tags: Vec<String>,
     file_name: String,
     image_url: String,
+    index: u32,
 }
 
 
@@ -96,6 +97,7 @@ async fn main() -> Result<(), Error> {
                     tags: article.tags,
                     data: markdown,
                     image_url: article.image_url,
+                    index: article.index,
                 });
             }
 
