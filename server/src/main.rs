@@ -1,5 +1,7 @@
+mod types;
+use types::*;
 use actix_cors::Cors;
-use actix_web::{get, web, App, Error, HttpResponse, HttpServer, Responder, Result};
+use actix_web::{get, post, web, App, Error, HttpResponse, HttpServer, Responder, Result};
 use actix_web::http::header;
 use dotenv::dotenv;
 use log::*;
@@ -9,6 +11,9 @@ use database::{Article, Calibration, Testimonial};
 use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
+use std::str::FromStr;
+use futures::StreamExt;
+
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -34,6 +39,7 @@ async fn main() -> std::io::Result<()> {
           .service(articles)
           .service(calibrations)
           .service(testimonials)
+          .service(subscribe)
           .route("/", web::get().to(test))
     })
       .bind(bind_address)?
@@ -42,15 +48,17 @@ async fn main() -> std::io::Result<()> {
 }
 
 pub fn init_logger(log_file: &PathBuf) -> std::io::Result<()> {
+    let log_level = std::env::var("LOG_LEVEL").unwrap_or_else(|_| "DEBUG".to_string());
+    let level_filter = LevelFilter::from_str(log_level.as_str()).unwrap();
     CombinedLogger::init(vec![
         TermLogger::new(
-            LevelFilter::Info,
+            level_filter,
             SimpleLogConfig::default(),
             TerminalMode::Mixed,
             ColorChoice::Always,
         ),
         WriteLogger::new(
-            LevelFilter::Info,
+            level_filter,
             ConfigBuilder::new().set_time_format_rfc3339().build(),
             File::create(log_file)?,
         ),
@@ -129,4 +137,71 @@ async fn testimonials() -> Result<HttpResponse, Error> {
     info!("GET testimonials: {:?}", &testimonials.len());
 
     Ok(HttpResponse::Ok().json(testimonials))
+}
+
+const MAX_SIZE: usize = 262_144; // max payload size is 256k
+
+#[post("/subscribe")]
+async fn subscribe(mut payload: web::Payload) -> Result<HttpResponse, Error> {
+    // payload is a stream of Bytes objects
+    let mut body = web::BytesMut::new();
+    while let Some(chunk) = payload.next().await {
+        let chunk = chunk?;
+        // limit max size of in-memory payload
+        if (body.len() + chunk.len()) > MAX_SIZE {
+            return Err(actix_web::error::ErrorBadRequest("Subscribe POST request bytes overflow"));
+        }
+        body.extend_from_slice(&chunk);
+    }
+
+    let request = serde_json::from_slice::<CreateCustomerRequest>(&body)?;
+    debug!("Create customer request: {:?}", &request);
+
+    // GET customer from Square, PUT if exists, POST if not
+    let base_url = std::env::var("SQUARE_API_URL").unwrap_or_else(|_| "https://connect.squareupsandbox.com/v2/".to_string());
+    let token = std::env::var("SQUARE_ACCESS_TOKEN").unwrap_or_else(|_| "".to_string());
+    let version = std::env::var("SQUARE_API_VERSION").unwrap_or_else(|_| "2023-09-25".to_string());
+
+    let client = reqwest::Client::new();
+
+    // POST customer search
+    let search_customer_endpoint = base_url.clone() + "customers/search";
+    let query = SearchCustomerQuery::new(request.email_address.clone()).to_value()?;
+    let res = client.post(search_customer_endpoint)
+      .header("Square-Version", version.clone())
+      .bearer_auth(token.clone())
+      .json(&query)
+      .send()
+      .await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to send POST customer search to Square"))?;
+    let res = res.json::<SearchCustomerResponse>().await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to parse SearchCustomerResponse from Square"))?;
+    info!("POST Square search customer: {:?}", &res);
+
+    if res.customers.is_empty() {
+        // create new customer -> POST
+        let create_customer_endpoint = base_url.clone() + "customers";
+        let res = client.post(create_customer_endpoint)
+          .header("Square-Version", version.clone())
+          .bearer_auth(token.clone())
+          .header("Content-Type", "application/json")
+          .json(&request)
+          .send()
+          .await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to send POST customer create to Square"))?;
+        let res = res.json::<serde_json::Value>().await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to parse POST response from Square"))?;
+        info!("POST Square create customer: {:?}", &res);
+    } else {
+        // update existing customer to subscribe -> PUT
+        let update_customer_endpoint = base_url.clone() + "customers";
+        let res = client.put(update_customer_endpoint)
+          .header("Square-Version", version.clone())
+          .bearer_auth(token.clone())
+          .header("Content-Type", "application/json")
+          .json(&request)
+          .send()
+          .await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to send PUT customer update to Square"))?;
+        let res = res.json::<serde_json::Value>().await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to parse PUT response from Square"))?;
+        info!("PUT Square update customer: {:?}", &res);
+    }
+
+
+    Ok(HttpResponse::Ok().json(res))
 }

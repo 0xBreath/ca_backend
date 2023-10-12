@@ -85,12 +85,9 @@ https://consciousness-archive-483dcd2b5c76.herokuapp.com
 
 ### TODO
 <h4 style="color: red"> High </h4>
-  - GCP load balancer to route HTTPS traffic to server
-    - [guide](https://cloud.google.com/load-balancing/docs/https/setup-global-ext-https-compute)
-    - look into github actions to auto deploy to GCP
-
-  - Postgres bindings for calibration, courses
+  - GCP load balancer for CDN
   - Subscription API
+  - Async database read/write?
 
 <h4 style="color: orange"> Medium </h4>
 - Admin upload dashboard
