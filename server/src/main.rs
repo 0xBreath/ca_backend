@@ -1,5 +1,9 @@
+mod utils;
 mod types;
+
 use types::*;
+use utils::*;
+
 use actix_cors::Cors;
 use actix_web::{get, post, web, App, Error, HttpResponse, HttpServer, Responder, Result};
 use actix_web::http::header;
@@ -14,6 +18,7 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use futures::StreamExt;
 
+const MAX_SIZE: usize = 262_144; // max payload size is 256k
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -39,6 +44,8 @@ async fn main() -> std::io::Result<()> {
           .service(articles)
           .service(calibrations)
           .service(testimonials)
+          .service(customer)
+          .service(catalog)
           .service(subscribe)
           .route("/", web::get().to(test))
     })
@@ -139,69 +146,53 @@ async fn testimonials() -> Result<HttpResponse, Error> {
     Ok(HttpResponse::Ok().json(testimonials))
 }
 
-const MAX_SIZE: usize = 262_144; // max payload size is 256k
-
-#[post("/subscribe")]
-async fn subscribe(mut payload: web::Payload) -> Result<HttpResponse, Error> {
-    // payload is a stream of Bytes objects
+#[post("/customer")]
+async fn customer(mut payload: web::Payload) -> Result<HttpResponse, Error> {
     let mut body = web::BytesMut::new();
     while let Some(chunk) = payload.next().await {
         let chunk = chunk?;
-        // limit max size of in-memory payload
         if (body.len() + chunk.len()) > MAX_SIZE {
             return Err(actix_web::error::ErrorBadRequest("Subscribe POST request bytes overflow"));
         }
         body.extend_from_slice(&chunk);
     }
 
-    let request = serde_json::from_slice::<CreateCustomerRequest>(&body)?;
-    debug!("Create customer request: {:?}", &request);
-
-    // GET customer from Square, PUT if exists, POST if not
-    let base_url = std::env::var("SQUARE_API_URL").unwrap_or_else(|_| "https://connect.squareupsandbox.com/v2/".to_string());
-    let token = std::env::var("SQUARE_ACCESS_TOKEN").unwrap_or_else(|_| "".to_string());
-    let version = std::env::var("SQUARE_API_VERSION").unwrap_or_else(|_| "2023-09-25".to_string());
-
+    let request = serde_json::from_slice::<CustomerRequest>(&body)?;
+    debug!("Update customer request: {:?}", &request);
     let client = reqwest::Client::new();
+    update_customer(&client, request).await
+}
 
-    // POST customer search
-    let search_customer_endpoint = base_url.clone() + "customers/search";
-    let query = SearchCustomerQuery::new(request.email_address.clone()).to_value()?;
-    let res = client.post(search_customer_endpoint)
-      .header("Square-Version", version.clone())
-      .bearer_auth(token.clone())
-      .json(&query)
-      .send()
-      .await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to send POST customer search to Square"))?;
-    let res = res.json::<SearchCustomerResponse>().await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to parse SearchCustomerResponse from Square"))?;
-    info!("POST Square search customer: {:?}", &res);
-
-    if res.customers.is_empty() {
-        // create new customer -> POST
-        let create_customer_endpoint = base_url.clone() + "customers";
-        let res = client.post(create_customer_endpoint)
-          .header("Square-Version", version.clone())
-          .bearer_auth(token.clone())
-          .header("Content-Type", "application/json")
-          .json(&request)
-          .send()
-          .await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to send POST customer create to Square"))?;
-        let res = res.json::<serde_json::Value>().await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to parse POST response from Square"))?;
-        info!("POST Square create customer: {:?}", &res);
-    } else {
-        // update existing customer to subscribe -> PUT
-        let update_customer_endpoint = base_url.clone() + "customers";
-        let res = client.put(update_customer_endpoint)
-          .header("Square-Version", version.clone())
-          .bearer_auth(token.clone())
-          .header("Content-Type", "application/json")
-          .json(&request)
-          .send()
-          .await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to send PUT customer update to Square"))?;
-        let res = res.json::<serde_json::Value>().await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to parse PUT response from Square"))?;
-        info!("PUT Square update customer: {:?}", &res);
+#[post("/catalog")]
+async fn catalog(mut payload: web::Payload) -> Result<HttpResponse, Error> {
+    let mut body = web::BytesMut::new();
+    while let Some(chunk) = payload.next().await {
+        let chunk = chunk?;
+        if (body.len() + chunk.len()) > MAX_SIZE {
+            return Err(actix_web::error::ErrorBadRequest("Subscription POST request bytes overflow"));
+        }
+        body.extend_from_slice(&chunk);
     }
 
+    let request = serde_json::from_slice::<CatalogBuilder>(&body)?;
+    info!("Upsert catalog request: {:?}", &request);
+    let client = reqwest::Client::new();
+    upsert_catalog(&client, request).await
+}
 
-    Ok(HttpResponse::Ok().json(res))
+#[post("/subscribe")]
+async fn subscribe(mut payload: web::Payload) -> Result<HttpResponse, Error> {
+    let mut body = web::BytesMut::new();
+    while let Some(chunk) = payload.next().await {
+        let chunk = chunk?;
+        if (body.len() + chunk.len()) > MAX_SIZE {
+            return Err(actix_web::error::ErrorBadRequest("Subscription POST request bytes overflow"));
+        }
+        body.extend_from_slice(&chunk);
+    }
+
+    let request = serde_json::from_slice::<CatalogBuilder>(&body)?;
+    info!("Upsert catalog request: {:?}", &request);
+    let client = reqwest::Client::new();
+    upsert_catalog(&client, request).await
 }

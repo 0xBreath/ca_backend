@@ -1,10 +1,9 @@
 use serde::{Serialize, Deserialize};
 
-
-// ======================= Create Customer =======================
+// ======================= Create Customer Request =======================
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct CreateCustomerRequest {
+pub struct CustomerRequest {
   pub email_address: String,
   pub family_name: String,
   pub given_name: String,
@@ -15,8 +14,10 @@ pub struct Preferences {
   pub email_unsubscribed: bool,
 }
 
+// ======================= Create Customer Response =======================
+
 #[derive(Debug, Serialize, Deserialize)]
-pub struct Customer {
+pub struct CustomerResponse {
   pub created_at: String,
   pub creation_source: String,
   pub email_address: String,
@@ -28,13 +29,7 @@ pub struct Customer {
   pub version: u64,
 }
 
-
-// ======================= Search Customer =======================
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct SearchCustomerResponse {
-  pub customers: Vec<Customer>,
-}
+// ======================= Search Customer Request =======================
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SearchCustomerExact {
@@ -52,13 +47,13 @@ pub struct SearchCustomerFilter {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct SearchCustomerQuery {
+pub struct SearchCustomerRequest {
   query: SearchCustomerFilter
 }
 
-impl SearchCustomerQuery {
-  pub fn new(email: String) -> SearchCustomerQuery {
-    SearchCustomerQuery {
+impl SearchCustomerRequest {
+  pub fn new(email: String) -> Self {
+    Self {
       query: SearchCustomerFilter {
         filter: SearchCustomerEmailAddress {
           email_address: SearchCustomerExact {
@@ -70,6 +65,13 @@ impl SearchCustomerQuery {
   }
 
   pub fn to_value(&self) -> serde_json::Result<serde_json::Value> {
-      serde_json::to_value(self)
+    serde_json::to_value(self)
   }
+}
+
+// ======================= Search Customer Response =======================
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SearchCustomerResponse {
+  pub customers: Vec<CustomerResponse>,
 }

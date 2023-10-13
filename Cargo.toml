@@ -2,7 +2,7 @@
 members = [
     "server",
     "database",
-    "admin"
+    "admin",
 ]
 
 [workspace.package]
