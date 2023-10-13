@@ -20,18 +20,18 @@ pub struct Price {
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct Pricing {
-  pub price_money: Price,
+  pub price: Price,
+  /// STATIC
+  #[serde(rename = "type")]
+  pub type_: String
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct Phase {
   pub uid: Option<String>,
   pub cadence: String,
-  pub ordinal: Option<u32>,
+  pub ordinal: u32,
   pub periods: Option<u32>,
-  /// STATIC
-  #[serde(rename = "type")]
-  pub type_: String,
   pub pricing: Pricing
 }
 
@@ -108,9 +108,10 @@ impl CatalogResponse {
           phases: vec![
             Phase {
               cadence: "MONTHLY".to_string(),
-              type_: "STATIC".to_string(),
+              ordinal: 0,
               pricing: Pricing {
-                price_money: Price {
+                type_: "STATIC".to_string(),
+                price: Price {
                   amount: request.price,
                   currency: "USD".to_string()
                 },
