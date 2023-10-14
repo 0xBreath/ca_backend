@@ -1,6 +1,6 @@
 use serde::{Serialize, Deserialize};
 use crate::{Source, Price};
-use crate::types::SubscriptionPlanResponseObject;
+use crate::types::{Address, SubscriptionPlanResponseObject};
 
 pub struct CheckoutBuilder {
   pub name: String,
@@ -15,6 +15,7 @@ pub struct CheckoutBuilder {
 pub struct CheckoutRequest {
   pub idempotency_key: String,
   pub quick_pay: QuickPay,
+  pub pre_populated_data: PrePopulatedData,
   pub checkout_options: CheckoutOptions
 }
 
@@ -29,6 +30,10 @@ impl CheckoutRequest {
           currency: "USD".to_string()
         },
         location_id: request.location_id,
+      },
+      pre_populated_data: PrePopulatedData {
+        buyer_email: Some("buyer@email.com".to_string()),
+        ..Default::default()
       },
       checkout_options: CheckoutOptions {
         subscription_plan_id: request.subscription_plan_id,
@@ -60,12 +65,20 @@ pub struct CheckoutResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PaymentLink {
   pub checkout_options: CheckoutOptions,
+  pub pre_populated_data: PrePopulatedData,
   pub created_at: String,
   pub id: String,
   pub long_url: String,
   pub order_id: String,
   pub url: String,
   pub version: u64,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct PrePopulatedData {
+  pub buyer_email: Option<String>,
+  pub buy_phone_number: Option<String>,
+  pub buyer_address: Option<Address>
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

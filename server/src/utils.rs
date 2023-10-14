@@ -105,7 +105,7 @@ impl SquareClient {
       .await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to send POST catalog subscription plan to Square"))?;
     debug!("POST Square catalog subscription plan: {:?}", &subscription_res);
     let subscription_plan = subscription_res.json::<SubscriptionPlanResponse>().await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to parse catalog subscription plan response from Square"))?;
-    info!("Square catalog subscription plan: {:?}", &subscription_plan);
+    debug!("Square catalog subscription plan: {:?}", &subscription_plan);
 
     Ok(subscription_plan)
   }
@@ -122,7 +122,7 @@ impl SquareClient {
     debug!("Square catalog list: {:?}", &catalog_list);
 
     let catalog = catalog_list.objects.into_iter().find(|plan| plan.id == self.catalog_id).unwrap();
-    info!("Square catalog: {:?}", &catalog);
+    debug!("Square catalog: {:?}", &catalog);
     Ok(catalog)
   }
 
@@ -192,15 +192,29 @@ impl SquareClient {
       .send()
       .await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to send POST subscription checkout to Square"))?;
     let checkout = res.json::<CheckoutResponse>().await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to parse POST subscription checkout response from Square"))?;
-    debug!("Square subscription checkout: {:?}", &checkout);
+    info!("Square subscription checkout: {:?}", &checkout);
 
     let checkout_info = CheckoutInfo {
       url: checkout.payment_link.url,
       amount: checkout.related_resources.orders.get(0).unwrap().net_amount_due_money.amount,
     };
-    info!("Square subscription checkout info: {:?}", &checkout_info);
+    debug!("Square subscription checkout info: {:?}", &checkout_info);
 
     Ok(checkout_info)
+  }
+
+  pub async fn list_customers(&self) -> Result<CustomerListResponse, Error> {
+    let endpoint = self.base_url.clone() + "customers?limit=10&sort_field=CREATED_AT&sort_order=DESC";
+
+    let res = self.client.get(endpoint)
+      .header("Square-Version", self.version.clone())
+      .bearer_auth(self.token.clone())
+      .header("Content-Type", "application/json")
+      .send()
+      .await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to GET customers from Square")).unwrap();
+    let list = res.json::<CustomerListResponse>().await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to parse GET customers response from Square"))?;
+    debug!("Square customer list: {:?}", &list);
+    Ok(list)
   }
 }
 

@@ -29,6 +29,18 @@ pub struct CustomerResponse {
   pub preferences: Preferences,
   pub updated_at: String,
   pub version: u64,
+  pub cards: Option<Vec<Card>>
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Card {
+  pub id: String,
+  pub card_brand: String,
+  pub last_4: String,
+  pub exp_month: u8,
+  pub exp_year: u16,
+  pub cardholder_name: String,
+  pub billing_address: Address,
 }
 
 // ======================= Update Customer Response =======================
@@ -82,5 +94,10 @@ impl SearchCustomerRequest {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SearchCustomerResponse {
+  pub customers: Vec<CustomerResponse>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CustomerListResponse {
   pub customers: Vec<CustomerResponse>,
 }
