@@ -1,4 +1,5 @@
 use serde::{Serialize, Deserialize};
+use crate::{Pricing, Price};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CatalogBuilder {
@@ -7,38 +8,22 @@ pub struct CatalogBuilder {
   pub id: String
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct Price {
-  // amount is smallest denomination of currency, so cents for USD
-  pub amount: u64,
-  pub currency: String
-}
-
-
-
 // ======================= Subscription Plan Request =======================
-
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct Pricing {
-  pub price: Price,
-  /// STATIC
-  #[serde(rename = "type")]
-  pub type_: String
-}
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Phase {
   pub uid: Option<String>,
   pub cadence: String,
-  pub ordinal: u32,
+  pub ordinal: Option<u32>,
   pub periods: Option<u32>,
-  pub pricing: Pricing
+  pub pricing: Pricing,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SubscriptionPlanData {
   pub name: String,
   pub all_items: Option<bool>,
+  pub subscription_plan_variations: Option<Vec<SubscriptionPlanResponseObject>>
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -75,6 +60,7 @@ impl CatalogRequest {
         subscription_plan_data: Some(SubscriptionPlanData {
           name: request.name,
           all_items: Some(true),
+          subscription_plan_variations: None,
         }),
         subscription_plan_variation_data: None
       },
@@ -108,13 +94,13 @@ impl CatalogResponse {
           phases: vec![
             Phase {
               cadence: "MONTHLY".to_string(),
-              ordinal: 0,
               pricing: Pricing {
                 type_: "STATIC".to_string(),
-                price: Price {
+                price: None,
+                price_money: Some(Price {
                   amount: request.price,
                   currency: "USD".to_string()
-                },
+                }),
               },
               ..Default::default()
             }
@@ -136,7 +122,7 @@ pub struct CatalogResponseObject {
   pub created_at: String,
   pub version: u64,
   pub present_at_all_locations: bool,
-  pub subscription_plan_data: Option<SubscriptionPlanData>,
+  pub subscription_plan_data: SubscriptionPlanData,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -155,18 +141,13 @@ pub struct SubscriptionPlanResponse {
 pub struct SubscriptionPlanResponseObject {
   #[serde(rename = "type")]
   pub type_: String,
-  pub created_at: String,
-  pub updated_at: String,
   pub id: String,
+  pub updated_at: String,
+  pub created_at: String,
+  pub version: u64,
   pub is_deleted: bool,
   pub present_at_all_locations: bool,
-  pub version: u64,
   pub subscription_plan_variation_data: SubscriptionPlanVariationData
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct CatalogListResponse {
-  pub objects: Vec<CatalogResponseObject>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -174,22 +155,7 @@ pub struct SubscriptionPlanListResponse {
   pub objects: Vec<SubscriptionPlanResponseObject>,
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CatalogListResponse {
+  pub objects: Vec<CatalogResponseObject>,
+}

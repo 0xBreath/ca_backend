@@ -1,5 +1,5 @@
 use serde::{Serialize, Deserialize};
-use crate::types::Price;
+use crate::{Source, Price};
 
 // ==================== Subscription Request ====================
 
@@ -76,11 +76,6 @@ pub struct PlanPhaseResponse {
   pub ordinal: u64,
   pub order_template_id: String,
   pub plan_phase_uid: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Source {
-  pub name: String,
 }
 
 // ==================== Subscription Search Response ====================

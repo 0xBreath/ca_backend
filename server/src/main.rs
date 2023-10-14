@@ -55,7 +55,6 @@ async fn main() -> std::io::Result<()> {
           .service(testimonials)
           .service(create_customer)
           .service(upsert_catalog)
-          .service(create_order_template)
           .service(subscribe)
           .service(subscriptions)
           .route("/", web::get().to(test))
@@ -177,47 +176,18 @@ async fn create_customer(mut payload: web::Payload) -> Result<HttpResponse, Erro
 }
 
 // todo: protect
-#[post("/upsert_catalog")]
-async fn upsert_catalog(mut payload: web::Payload) -> Result<HttpResponse, Error> {
-    let mut body = web::BytesMut::new();
-    while let Some(chunk) = payload.next().await {
-        let chunk = chunk?;
-        if (body.len() + chunk.len()) > MAX_SIZE {
-            return Err(actix_web::error::ErrorBadRequest("Subscription POST request bytes overflow"));
-        }
-        body.extend_from_slice(&chunk);
-    }
-
-    let request = serde_json::from_slice::<CatalogBuilder>(&body)?;
-    info!("Upsert catalog request: {:?}", &request);
+#[get("/upsert_catalog")]
+async fn upsert_catalog() -> Result<HttpResponse, Error> {
     let client = SQUARE_CLIENT.lock().await;
-    let catalog = client.upsert_catalog(request).await?;
+    let catalog = client.upsert_catalog().await?;
     Ok(HttpResponse::Ok().json(catalog))
 }
 
 // todo: protect
-#[get("/create_order_template")]
-async fn create_order_template() -> Result<HttpResponse, Error> {
+#[get("/subscribe")]
+async fn subscribe() -> Result<HttpResponse, Error> {
     let client = SQUARE_CLIENT.lock().await;
-    let order = client.create_order_template().await?;
-    Ok(HttpResponse::Ok().json(order))
-}
-
-// todo: protect
-#[post("/subscribe")]
-async fn subscribe(mut payload: web::Payload) -> Result<HttpResponse, Error> {
-    let mut body = web::BytesMut::new();
-    while let Some(chunk) = payload.next().await {
-        let chunk = chunk?;
-        if (body.len() + chunk.len()) > MAX_SIZE {
-            return Err(actix_web::error::ErrorBadRequest("Subscription POST request bytes overflow"));
-        }
-        body.extend_from_slice(&chunk);
-    }
-
-    let request = serde_json::from_slice::<CustomerRequest>(&body)?;
-    let client = SQUARE_CLIENT.lock().await;
-    let subscribe = client.store_card(request).await?;
+    let subscribe = client.subscribe().await?;
     Ok(HttpResponse::Ok().json(subscribe))
 }
 
