@@ -1,12 +1,14 @@
 use serde::{Serialize, Deserialize};
+use crate::types::Address;
 
 // ======================= Create Customer Request =======================
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CustomerRequest {
   pub email_address: String,
   pub family_name: String,
   pub given_name: String,
+  pub address: Address
 }
 
 #[derive(Debug, Serialize, Deserialize)]

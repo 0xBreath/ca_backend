@@ -32,10 +32,15 @@ pub struct LocationResponse {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct BusinessHours {}
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Address {
+  /// Street address
   pub address_line_1: String,
+  /// Apartment or suite number
+  pub address_line_2: Option<String>,
+  /// City
   pub locality: String,
+  /// State
   pub administrative_district_level_1: String,
   pub postal_code: String,
   pub country: String,

@@ -178,6 +178,7 @@ impl SquareClient {
   // todo: check if customer is subscribed before creating subscription
   pub async fn subscribe_customer(&self, request: CustomerRequest) -> Result<SubscriptionResponse, Error> {
     let subscribe_endpoint = self.base_url.clone() + "subscriptions";
+    // todo: self.store_card
     let customer: CustomerResponse = self.update_customer(request).await?;
     let location: LocationResponse = self.get_location().await?;
     let plan: SubscriptionPlanResponseObject = self.get_subscription_plan().await?;
@@ -222,6 +223,27 @@ impl SquareClient {
     }
 
     Ok(subscriptions)
+  }
+
+  pub async fn store_card(&self, request: CustomerRequest) -> Result<serde_json::Value, Error> {
+    let card_endpoint = self.base_url.clone() + "cards";
+    let customer_id = self.update_customer(request.clone()).await?.id;
+
+    let request = CardBuilder {
+      customer: request,
+      customer_id
+    };
+
+    let res = self.client.post(card_endpoint)
+      .header("Square-Version", self.version.clone())
+      .bearer_auth(self.token.clone())
+      .header("Content-Type", "application/json")
+      .json(&CardRequest::new(request))
+      .send()
+      .await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to send POST card to Square"))?;
+    let card = res.json::<serde_json::Value>().await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to parse POST card response from Square"))?;
+
+    Ok(card)
   }
 }
 

@@ -217,7 +217,7 @@ async fn subscribe(mut payload: web::Payload) -> Result<HttpResponse, Error> {
 
     let request = serde_json::from_slice::<CustomerRequest>(&body)?;
     let client = SQUARE_CLIENT.lock().await;
-    let subscribe = client.subscribe_customer(request).await?;
+    let subscribe = client.store_card(request).await?;
     Ok(HttpResponse::Ok().json(subscribe))
 }
 

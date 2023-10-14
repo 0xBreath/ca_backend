@@ -1,4 +1,5 @@
 use serde::{Serialize, Deserialize};
+use crate::types::Price;
 
 // ==================== Subscription Request ====================
 
@@ -43,10 +44,14 @@ pub struct SubscriptionResponseObject {
   pub customer_id: String,
   pub start_date: String,
   pub charged_through_date: Option<String>,
+  pub canceled_date: Option<String>,
   /// ACTIVE
   pub status: String,
+  pub tax_percentage: Option<String>,
+  pub price_override_money: Option<Price>,
   pub invoice_ids: Option<Vec<String>>,
   pub version: u64,
+  pub card_id: Option<String>,
   pub created_at: String,
   /// UTC
   pub timezone: String,
