@@ -44,9 +44,9 @@ async fn main() -> std::io::Result<()> {
           .service(articles)
           .service(calibrations)
           .service(testimonials)
-          .service(customer)
-          .service(catalog)
-          .service(subscribe)
+          .service(create_customer)
+          .service(upsert_catalog)
+          .service(create_order_template)
           .route("/", web::get().to(test))
     })
       .bind(bind_address)?
@@ -146,8 +146,8 @@ async fn testimonials() -> Result<HttpResponse, Error> {
     Ok(HttpResponse::Ok().json(testimonials))
 }
 
-#[post("/customer")]
-async fn customer(mut payload: web::Payload) -> Result<HttpResponse, Error> {
+#[post("/create_customer")]
+async fn create_customer(mut payload: web::Payload) -> Result<HttpResponse, Error> {
     let mut body = web::BytesMut::new();
     while let Some(chunk) = payload.next().await {
         let chunk = chunk?;
@@ -159,12 +159,12 @@ async fn customer(mut payload: web::Payload) -> Result<HttpResponse, Error> {
 
     let request = serde_json::from_slice::<CustomerRequest>(&body)?;
     debug!("Update customer request: {:?}", &request);
-    let client = reqwest::Client::new();
-    update_customer(&client, request).await
+    let client = SquareClient::new();
+    client.update_customer(request).await
 }
 
-#[post("/catalog")]
-async fn catalog(mut payload: web::Payload) -> Result<HttpResponse, Error> {
+#[post("/upsert_catalog")]
+async fn upsert_catalog(mut payload: web::Payload) -> Result<HttpResponse, Error> {
     let mut body = web::BytesMut::new();
     while let Some(chunk) = payload.next().await {
         let chunk = chunk?;
@@ -176,23 +176,12 @@ async fn catalog(mut payload: web::Payload) -> Result<HttpResponse, Error> {
 
     let request = serde_json::from_slice::<CatalogBuilder>(&body)?;
     info!("Upsert catalog request: {:?}", &request);
-    let client = reqwest::Client::new();
-    upsert_catalog(&client, request).await
+    let client = SquareClient::new();
+    client.upsert_catalog(request).await
 }
 
-#[post("/subscribe")]
-async fn subscribe(mut payload: web::Payload) -> Result<HttpResponse, Error> {
-    let mut body = web::BytesMut::new();
-    while let Some(chunk) = payload.next().await {
-        let chunk = chunk?;
-        if (body.len() + chunk.len()) > MAX_SIZE {
-            return Err(actix_web::error::ErrorBadRequest("Subscription POST request bytes overflow"));
-        }
-        body.extend_from_slice(&chunk);
-    }
-
-    let request = serde_json::from_slice::<CatalogBuilder>(&body)?;
-    info!("Upsert catalog request: {:?}", &request);
-    let client = reqwest::Client::new();
-    upsert_catalog(&client, request).await
+#[get("/create_order_template")]
+async fn create_order_template() -> Result<HttpResponse, Error> {
+    let client = SquareClient::new();
+    client.create_order_template().await
 }

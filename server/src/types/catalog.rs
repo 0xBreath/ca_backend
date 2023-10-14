@@ -136,11 +136,60 @@ pub struct CatalogResponseObject {
   pub created_at: String,
   pub version: u64,
   pub present_at_all_locations: bool,
-  pub subscription_plan_data: SubscriptionPlanData,
+  pub subscription_plan_data: Option<SubscriptionPlanData>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct IdMapping {
-  client_object_id: String,
-  object_id: String
+  pub client_object_id: String,
+  pub object_id: String
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SubscriptionPlanResponse {
+  pub catalog_object: SubscriptionPlanResponseObject,
+  pub id_mappings: Vec<IdMapping>
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SubscriptionPlanResponseObject {
+  #[serde(rename = "type")]
+  pub type_: String,
+  pub created_at: String,
+  pub updated_at: String,
+  pub id: String,
+  pub is_deleted: bool,
+  pub present_at_all_locations: bool,
+  pub version: u64,
+  pub subscription_plan_variation_data: SubscriptionPlanVariationData
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CatalogListResponse {
+  pub objects: Vec<CatalogResponseObject>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SubscriptionPlanListResponse {
+  pub objects: Vec<SubscriptionPlanResponseObject>,
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

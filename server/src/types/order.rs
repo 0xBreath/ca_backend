@@ -1,4 +1,5 @@
 use serde::{Serialize, Deserialize};
+use crate::types::Price;
 
 // ==================== Order Request ====================
 
@@ -27,7 +28,6 @@ impl OrderRequest {
             catalog_object_id: request.catalog_object_id,
           }
         ],
-        // todo: annual subscription discount
         discounts: None
       }
     }
@@ -40,7 +40,7 @@ pub struct OrderRequestObject {
   /// DRAFT
   pub state: String,
   pub line_items: Vec<LineItemRequest>,
-  pub discounts: Option<Vec<Discount>>
+  pub discounts: Option<Vec<DiscountRequest>>
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -51,7 +51,7 @@ pub struct LineItemRequest {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct Discount {
+pub struct DiscountRequest {
   pub catalog_object_id: String,
   /// ORDER
   pub scope: String,
@@ -59,22 +59,102 @@ pub struct Discount {
 
 // ==================== Order Response ====================
 
-// #[derive(Debug, Clone, Serialize, Deserialize)]
-// pub struct OrderResponse {
-//   pub order: OrderResponseObject
-// }
-//
-// pub struct OrderResponseObject {
-//   pub id: String,
-//   pub location_id: String,
-//   pub line_items: Vec<LineItemResponse>,
-// }
-//
-// pub struct LineItemResponse {
-//   pub uid: String,
-//   pub catalog_object_id: String,
-//   pub catalog_version: u64,
-//   pub quantity: String,
-//   pub name: String,
-//   pub variation_name: String,
-// }
+#[derive(Debug, Serialize, Deserialize)]
+pub struct OrderResponse {
+  pub order: OrderResponseObject
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct OrderResponseObject {
+  pub id: String,
+  pub location_id: String,
+  pub line_items: Vec<LineItemResponse>,
+  pub discounts: Option<Vec<DiscountResponse>>,
+  pub created_at: String,
+  pub updated_at: String,
+  pub state: String,
+  pub version: u64,
+  pub total_tax_money: Price,
+  pub total_discount_money: Price,
+  pub total_tip_money: Price,
+  pub total_money: Price,
+  pub total_service_charge_money: Price,
+  pub net_amounts: NetAmounts,
+  pub source: Source,
+  pub net_amount_due: Price
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct LineItemResponse {
+  pub uid: String,
+  pub catalog_object_id: String,
+  pub catalog_version: u64,
+  pub quantity: String,
+  pub name: String,
+  pub variation_name: String,
+  pub base_price_money: Price,
+  pub gross_sales_money: Price,
+  pub total_tax_money: Price,
+  pub total_discount_money: Price,
+  pub total_money: Price,
+  pub variation_total_price_money: Price,
+  pub applied_discounts: Vec<AppliedDiscount>,
+  pub item_type: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AppliedDiscount {
+  pub uid: String,
+  pub discount_uid: String,
+  pub applied_money: Price,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DiscountResponse {
+  pub uid: String,
+  pub catalog_object_id: String,
+  pub catalog_version: u64,
+  pub name: String,
+  pub percentage: String,
+  pub applied_money: Price,
+  #[serde(rename = "type")]
+  pub type_: String,
+  pub scope: String,
+  pub apply_per_quantity: bool
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct NetAmounts {
+  pub total_money: Price,
+  pub tax_money: Price,
+  pub discount_money: Price,
+  pub tip_money: Price,
+  pub service_charge_money: Price,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Source {
+  pub name: String,
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
