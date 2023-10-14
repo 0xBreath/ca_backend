@@ -33,6 +33,11 @@ pub struct PlanPhaseRequest {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SubscriptionResponse {
+  pub subscription: SubscriptionResponseObject
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SubscriptionResponseObject {
   pub id: String,
   pub location_id: String,
   pub customer_id: String,

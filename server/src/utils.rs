@@ -175,7 +175,8 @@ impl SquareClient {
     Ok(order_template)
   }
 
-  pub async fn subscribe_customer(&self, request: CustomerRequest) -> Result<serde_json::Value, Error> {
+  // todo: check if customer is subscribed before creating subscription
+  pub async fn subscribe_customer(&self, request: CustomerRequest) -> Result<SubscriptionResponse, Error> {
     let subscribe_endpoint = self.base_url.clone() + "subscriptions";
     let customer: CustomerResponse = self.update_customer(request).await?;
     let location: LocationResponse = self.get_location().await?;
@@ -187,10 +188,14 @@ impl SquareClient {
       .json(&SubscriptionRequest::new(customer.id, location.id, plan.id))
       .send()
       .await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to send POST subscription to Square")).unwrap();
-    let subscription = res.json::<serde_json::Value>().await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to parse POST subscription response from Square")).unwrap();
+    let subscription = res.json::<SubscriptionResponse>().await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to parse POST subscription response from Square")).unwrap();
     info!("Square subscription: {:?}", &subscription);
 
     Ok(subscription)
+  }
+
+  pub async fn list_subscriptions(&self) {
+
   }
 }
 
