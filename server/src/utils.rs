@@ -1,4 +1,4 @@
-use actix_web::{Error, HttpResponse};
+use actix_web::{Error};
 use crate::types::*;
 use log::*;
 use reqwest::Client;
@@ -8,6 +8,9 @@ pub struct SquareClient {
   pub base_url: String,
   pub token: String,
   pub version: String,
+  pub location_id: String,
+  pub catalog_id: String,
+  pub plan_id: String,
 }
 
 impl SquareClient {
@@ -17,11 +20,13 @@ impl SquareClient {
       base_url: std::env::var("SQUARE_API_URL").unwrap_or_else(|_| "https://connect.squareupsandbox.com/v2/".to_string()),
       token: std::env::var("SQUARE_ACCESS_TOKEN").unwrap_or_else(|_| "".to_string()),
       version: std::env::var("SQUARE_API_VERSION").unwrap_or_else(|_| "2023-09-25".to_string()),
+      location_id: std::env::var("SQUARE_LOCATION_ID").unwrap_or_else(|_| "".to_string()),
+      catalog_id: std::env::var("SQUARE_CATALOG_ID").unwrap_or_else(|_| "".to_string()),
+      plan_id: std::env::var("SQUARE_PLAN_ID").unwrap_or_else(|_| "".to_string()),
     }
   }
 
-  pub async fn update_customer(&self, request: CustomerRequest) -> Result<HttpResponse, Error> {
-
+  pub async fn update_customer(&self, request: CustomerRequest) -> Result<CustomerResponse, Error> {
     // POST customer search
     let search_customer_endpoint = self.base_url.clone() + "customers/search";
     let query = SearchCustomerRequest::new(request.email_address.clone()).to_value()?;
@@ -47,7 +52,7 @@ impl SquareClient {
       let res = res.json::<CustomerResponse>().await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to parse POST response from Square"))?;
       info!("POST Square create customer: {:?}", &res);
 
-      Ok(HttpResponse::Ok().json(request))
+      Ok(res)
     } else {
       // update existing customer to subscribe -> PUT
       let customer_id = customer_search.customers[0].id.clone();
@@ -61,14 +66,14 @@ impl SquareClient {
         .json(&request)
         .send()
         .await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to send PUT customer update to Square"))?;
-      let res = res.json::<CustomerResponse>().await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to parse PUT response from Square"))?;
+      let res = res.json::<UpdateCustomerResponse>().await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to parse PUT response from Square"))?;
       info!("PUT Square update customer: {:?}", &res);
 
-      Ok(HttpResponse::Ok().json(request))
+      Ok(res.customer)
     }
   }
 
-  pub async fn upsert_catalog(&self, request: CatalogBuilder) -> Result<HttpResponse, Error> {
+  pub async fn upsert_catalog(&self, request: CatalogBuilder) -> Result<SubscriptionPlanResponse, Error> {
     let catalog_endpoint = self.base_url.clone() + "catalog/object";
 
     // upsert catalog
@@ -94,7 +99,7 @@ impl SquareClient {
     let subscription_plan = subscription_res.json::<SubscriptionPlanResponse>().await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to parse catalog subscription plan response from Square"))?;
     info!("Square catalog subscription plan: {:?}", &subscription_plan);
 
-    Ok(HttpResponse::Ok().json(subscription_plan))
+    Ok(subscription_plan)
   }
 
   async fn latest_catalog(&self) -> Result<CatalogResponseObject, Error> {
@@ -117,13 +122,7 @@ impl SquareClient {
     Ok(catalog_list)
   }
 
-  async fn latest_subscription_plan(&self) -> Result<SubscriptionPlanResponseObject, Error> {
-    let list = self.list_subscription_plans().await?;
-    let latest_subscription_plan = list.objects.into_iter().last().unwrap();
-    Ok(latest_subscription_plan)
-  }
-
-  async fn list_subscription_plans(&self) -> Result<SubscriptionPlanListResponse, Error> {
+  async fn get_subscription_plan(&self) -> Result<SubscriptionPlanResponseObject, Error> {
     let list_subs_endpoint = self.base_url.clone() + "catalog/list?types=SUBSCRIPTION_PLAN_VARIATION";
 
     let sub_list_res = self.client.get(list_subs_endpoint)
@@ -133,12 +132,14 @@ impl SquareClient {
       .await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to GET subscription plan list from Square")).unwrap();
     let sub_list = sub_list_res.json::<SubscriptionPlanListResponse>().await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to parse catalog subscription plan response from Square"))?;
     debug!("Square subscription plan list: {:?}", &sub_list);
+    let plan = sub_list.objects.into_iter().find(|plan| plan.id == self.plan_id).unwrap();
 
-    Ok(sub_list)
+    Ok(plan)
   }
 
-  async fn latest_location(&self) -> Result<LocationResponse, Error> {
+  async fn get_location(&self) -> Result<LocationResponse, Error> {
     let location_endpoint = self.base_url.clone() + "locations";
+
     let res = self.client.get(location_endpoint)
       .header("Square-Version", self.version.clone())
       .bearer_auth(self.token.clone())
@@ -146,17 +147,20 @@ impl SquareClient {
       .await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to GET location from Square")).unwrap();
     let location_list = res.json::<LocationListResponse>().await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to parse location response from Square"))?;
     debug!("Square location: {:?}", &location_list);
-    let latest_location = location_list.locations.into_iter().last().unwrap();
-    Ok(latest_location)
+    // todo: error handle
+    let location = location_list.locations.into_iter().find(|location| location.id == self.location_id).unwrap();
+    Ok(location)
   }
 
-  pub async fn create_order_template(&self) -> Result<HttpResponse, Error> {
+  pub async fn create_order_template(&self) -> Result<OrderResponse, Error> {
     let order_endpoint = self.base_url.clone() + "orders";
-    let latest_catalog = self.latest_subscription_plan().await.unwrap();
-    let latest_location = self.latest_location().await.unwrap();
+    let latest_catalog = self.latest_catalog().await.unwrap();
+    let latest_location = self.get_location().await.unwrap();
+
+    let catalog_object_id = latest_catalog.id;
     let request = OrderRequest::new(OrderBuilder {
       location_id: latest_location.id,
-      catalog_object_id: latest_catalog.id,
+      catalog_object_id,
     });
 
     let res = self.client.post(order_endpoint)
@@ -165,10 +169,29 @@ impl SquareClient {
       .json(&request)
       .send()
       .await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to send POST order create to Square")).unwrap();
-    let order_template = res.json::<serde_json::Value>().await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to parse POST response from Square")).unwrap();
+    let order_template = res.json::<OrderResponse>().await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to parse POST response from Square")).unwrap();
     info!("Square order template: {:?}", &order_template);
 
-    Ok(HttpResponse::Ok().json(order_template))
+    Ok(order_template)
+  }
+
+  pub async fn subscribe_customer(&self, request: CustomerRequest) -> Result<serde_json::Value, Error> {
+    let subscribe_endpoint = self.base_url.clone() + "subscriptions";
+    let customer: CustomerResponse = self.update_customer(request).await?;
+    let location: LocationResponse = self.get_location().await?;
+    let plan: SubscriptionPlanResponseObject = self.get_subscription_plan().await?;
+
+    let res = self.client.post(subscribe_endpoint)
+      .header("Square-Version", self.version.clone())
+      .bearer_auth(self.token.clone())
+      .json(&SubscriptionRequest::new(customer.id, location.id, plan.id))
+      .send()
+      .await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to send POST subscription to Square")).unwrap();
+    let subscription = res.json::<serde_json::Value>().await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to parse POST subscription response from Square")).unwrap();
+    info!("Square subscription: {:?}", &subscription);
+
+    Ok(subscription)
   }
 }
+
 

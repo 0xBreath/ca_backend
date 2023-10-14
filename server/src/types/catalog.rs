@@ -7,7 +7,7 @@ pub struct CatalogBuilder {
   pub id: String
 }
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Price {
   // amount is smallest denomination of currency, so cents for USD
   pub amount: u64,
@@ -18,7 +18,7 @@ pub struct Price {
 
 // ======================= Subscription Plan Request =======================
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Pricing {
   pub price: Price,
   /// STATIC
@@ -26,7 +26,7 @@ pub struct Pricing {
   pub type_: String
 }
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Phase {
   pub uid: Option<String>,
   pub cadence: String,

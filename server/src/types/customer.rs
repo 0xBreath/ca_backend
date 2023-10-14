@@ -29,6 +29,13 @@ pub struct CustomerResponse {
   pub version: u64,
 }
 
+// ======================= Update Customer Response =======================
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct UpdateCustomerResponse {
+  pub customer: CustomerResponse
+}
+
 // ======================= Search Customer Request =======================
 
 #[derive(Debug, Serialize, Deserialize)]

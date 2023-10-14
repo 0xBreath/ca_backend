@@ -4,6 +4,9 @@ mod types;
 use types::*;
 use utils::*;
 
+#[macro_use]
+extern crate lazy_static;
+
 use actix_cors::Cors;
 use actix_web::{get, post, web, App, Error, HttpResponse, HttpServer, Responder, Result};
 use actix_web::http::header;
@@ -17,8 +20,14 @@ use std::io::Read;
 use std::path::PathBuf;
 use std::str::FromStr;
 use futures::StreamExt;
+use lazy_static::lazy_static;
+use tokio::sync::Mutex;
 
 const MAX_SIZE: usize = 262_144; // max payload size is 256k
+
+lazy_static! {
+    static ref SQUARE_CLIENT: Mutex<SquareClient> = Mutex::new(SquareClient::new());
+}
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -47,6 +56,7 @@ async fn main() -> std::io::Result<()> {
           .service(create_customer)
           .service(upsert_catalog)
           .service(create_order_template)
+          .service(subscribe)
           .route("/", web::get().to(test))
     })
       .bind(bind_address)?
@@ -146,6 +156,7 @@ async fn testimonials() -> Result<HttpResponse, Error> {
     Ok(HttpResponse::Ok().json(testimonials))
 }
 
+// todo: protect
 #[post("/create_customer")]
 async fn create_customer(mut payload: web::Payload) -> Result<HttpResponse, Error> {
     let mut body = web::BytesMut::new();
@@ -159,10 +170,12 @@ async fn create_customer(mut payload: web::Payload) -> Result<HttpResponse, Erro
 
     let request = serde_json::from_slice::<CustomerRequest>(&body)?;
     debug!("Update customer request: {:?}", &request);
-    let client = SquareClient::new();
-    client.update_customer(request).await
+    let client = SQUARE_CLIENT.lock().await;
+    let customer = client.update_customer(request).await?;
+    Ok(HttpResponse::Ok().json(customer))
 }
 
+// todo: protect
 #[post("/upsert_catalog")]
 async fn upsert_catalog(mut payload: web::Payload) -> Result<HttpResponse, Error> {
     let mut body = web::BytesMut::new();
@@ -176,12 +189,33 @@ async fn upsert_catalog(mut payload: web::Payload) -> Result<HttpResponse, Error
 
     let request = serde_json::from_slice::<CatalogBuilder>(&body)?;
     info!("Upsert catalog request: {:?}", &request);
-    let client = SquareClient::new();
-    client.upsert_catalog(request).await
+    let client = SQUARE_CLIENT.lock().await;
+    let catalog = client.upsert_catalog(request).await?;
+    Ok(HttpResponse::Ok().json(catalog))
 }
 
+// todo: protect
 #[get("/create_order_template")]
 async fn create_order_template() -> Result<HttpResponse, Error> {
-    let client = SquareClient::new();
-    client.create_order_template().await
+    let client = SQUARE_CLIENT.lock().await;
+    let order = client.create_order_template().await?;
+    Ok(HttpResponse::Ok().json(order))
+}
+
+// todo: protect
+#[post("/subscribe")]
+async fn subscribe(mut payload: web::Payload) -> Result<HttpResponse, Error> {
+    let mut body = web::BytesMut::new();
+    while let Some(chunk) = payload.next().await {
+        let chunk = chunk?;
+        if (body.len() + chunk.len()) > MAX_SIZE {
+            return Err(actix_web::error::ErrorBadRequest("Subscription POST request bytes overflow"));
+        }
+        body.extend_from_slice(&chunk);
+    }
+
+    let request = serde_json::from_slice::<CustomerRequest>(&body)?;
+    let client = SQUARE_CLIENT.lock().await;
+    let subscribe = client.subscribe_customer(request).await?;
+    Ok(HttpResponse::Ok().json(subscribe))
 }
