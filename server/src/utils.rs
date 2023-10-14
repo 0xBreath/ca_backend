@@ -52,14 +52,14 @@ impl SquareClient {
         .send()
         .await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to send POST customer create to Square"))?;
       let res = res.json::<CustomerResponse>().await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to parse POST response from Square"))?;
-      info!("POST Square create customer: {:?}", &res);
+      debug!("POST Square create customer: {:?}", &res);
 
       Ok(res)
     } else {
       // update existing customer to subscribe -> PUT
       let customer_id = customer_search.customers[0].id.clone();
       let update_customer_endpoint = format!("{}customers/{}", self.base_url.clone(), customer_id);
-      debug!("update customer endpoint: {}", update_customer_endpoint);
+      info!("update customer endpoint: {}", update_customer_endpoint);
 
       let res = self.client.put(update_customer_endpoint)
         .header("Square-Version", self.version.clone())
@@ -81,9 +81,9 @@ impl SquareClient {
     let request = CatalogBuilder {
       id: "#plan".to_string(),
       name: self.subscription_name.clone(),
-      price: self.subscription_price.clone(),
+      price: self.subscription_price,
     };
-    
+
     // upsert catalog
     let catalog_res = self.client.post(catalog_endpoint.clone())
       .header("Square-Version", self.version.clone())
@@ -171,7 +171,7 @@ impl SquareClient {
     Ok(subscriptions)
   }
 
-  pub async fn subscribe(&self) -> Result<serde_json::Value, Error> {
+  pub async fn subscribe(&self) -> Result<CheckoutInfo, Error> {
     let checkout_endpoint = self.base_url.clone() + "online-checkout/payment-links";
     let subscription_plan_id = self.get_catalog().await?.subscription_plan_data
       .subscription_plan_variations.unwrap()
@@ -185,15 +185,22 @@ impl SquareClient {
       .header("Content-Type", "application/json")
       .json(&CheckoutRequest::new(CheckoutBuilder {
         name: "Premium".to_string(),
-        price: self.subscription_price.clone(),
+        price: self.subscription_price,
         location_id,
         subscription_plan_id,
       }))
       .send()
       .await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to send POST subscription checkout to Square"))?;
-    let checkout = res.json::<serde_json::Value>().await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to parse POST subscription checkout response from Square"))?;
+    let checkout = res.json::<CheckoutResponse>().await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to parse POST subscription checkout response from Square"))?;
+    debug!("Square subscription checkout: {:?}", &checkout);
 
-    Ok(checkout)
+    let checkout_info = CheckoutInfo {
+      url: checkout.payment_link.url,
+      amount: checkout.related_resources.orders.get(0).unwrap().net_amount_due_money.amount,
+    };
+    info!("Square subscription checkout info: {:?}", &checkout_info);
+
+    Ok(checkout_info)
   }
 }
 

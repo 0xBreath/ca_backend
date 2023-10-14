@@ -26,7 +26,7 @@ pub struct SubscriptionPlanData {
   pub subscription_plan_variations: Option<Vec<SubscriptionPlanResponseObject>>
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SubscriptionPlanVariationData {
   pub name: String,
   pub phases: Vec<Phase>,
@@ -137,17 +137,17 @@ pub struct SubscriptionPlanResponse {
   pub id_mappings: Vec<IdMapping>
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SubscriptionPlanResponseObject {
-  #[serde(rename = "type")]
-  pub type_: String,
-  pub id: String,
-  pub updated_at: String,
   pub created_at: String,
-  pub version: u64,
+  pub id: String,
   pub is_deleted: bool,
   pub present_at_all_locations: bool,
-  pub subscription_plan_variation_data: SubscriptionPlanVariationData
+  pub subscription_plan_variation_data: SubscriptionPlanVariationData,
+  #[serde(rename = "type")]
+  pub type_: String,
+  pub updated_at: String,
+  pub version: u64,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

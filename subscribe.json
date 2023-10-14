@@ -1,0 +1,151 @@
+{
+  "payment_link": {
+    "checkout_options": {
+      "subscription_plan_id": "KDQM33YW5GUHYUUW2HWIRIFE"
+    },
+    "created_at": "2023-10-14T21:13:02Z",
+    "id": "UPNCWUPXPEK65OML",
+    "long_url": "https://connect.squareupsandbox.com/v2/online-checkout/sandbox-testing-panel/MLTG7WEC6MP3K/UPNCWUPXPEK65OML",
+    "order_id": "5cWU9oWWfbE1rzNedLXNmtJBQaRZY",
+    "url": "https://sandbox.square.link/u/yvCCeODo",
+    "version": 1
+  },
+  "related_resources": {
+    "orders": [
+      {
+        "created_at": "2023-10-14T21:13:02.268Z",
+        "fulfillments": [
+          {
+            "uid": "LBkywgWCMEQYC0p5OmSKf",
+            "type": "DIGITAL",
+            "state": "PROPOSED"
+          }
+        ],
+        "id": "5cWU9oWWfbE1rzNedLXNmtJBQaRZY",
+        "line_items": [
+          {
+            "base_price_money": {
+              "amount": 1295,
+              "currency": "USD"
+            },
+            "gross_sales_money": {
+              "amount": 1295,
+              "currency": "USD"
+            },
+            "item_type": "ITEM",
+            "name": "Premium",
+            "quantity": "1",
+            "total_discount_money": {
+              "amount": 0,
+              "currency": "USD"
+            },
+            "total_money": {
+              "amount": 1295,
+              "currency": "USD"
+            },
+            "total_service_charge_money": {
+              "amount": 0,
+              "currency": "USD"
+            },
+            "total_tax_money": {
+              "amount": 0,
+              "currency": "USD"
+            },
+            "uid": "ye8cbbXbCM6EfSF723mTnB",
+            "variation_total_price_money": {
+              "amount": 1295,
+              "currency": "USD"
+            }
+          }
+        ],
+        "location_id": "L9W0838PXJK9K",
+        "net_amount_due_money": {
+          "amount": 1295,
+          "currency": "USD"
+        },
+        "net_amounts": {
+          "discount_money": {
+            "amount": 0,
+            "currency": "USD"
+          },
+          "service_charge_money": {
+            "amount": 0,
+            "currency": "USD"
+          },
+          "tax_money": {
+            "amount": 0,
+            "currency": "USD"
+          },
+          "tip_money": {
+            "amount": 0,
+            "currency": "USD"
+          },
+          "total_money": {
+            "amount": 1295,
+            "currency": "USD"
+          }
+        },
+        "source": {
+          "name": "Sandbox for sq0idp-UdCAxDXtyzZmGOrPZD1UCw"
+        },
+        "state": "DRAFT",
+        "total_discount_money": {
+          "amount": 0,
+          "currency": "USD"
+        },
+        "total_money": {
+          "amount": 1295,
+          "currency": "USD"
+        },
+        "total_service_charge_money": {
+          "amount": 0,
+          "currency": "USD"
+        },
+        "total_tax_money": {
+          "amount": 0,
+          "currency": "USD"
+        },
+        "total_tip_money": {
+          "amount": 0,
+          "currency": "USD"
+        },
+        "updated_at": "2023-10-14T21:13:02.268Z",
+        "version": 1
+      }
+    ],
+    "subscription_plans": [
+      {
+        "created_at": "2023-10-14T20:48:58.308Z",
+        "id": "KDQM33YW5GUHYUUW2HWIRIFE",
+        "is_deleted": false,
+        "present_at_all_locations": true,
+        "subscription_plan_variation_data": {
+          "name": "Premium",
+          "phases": [
+            {
+              "uid": "ZODJ62CE6E7674RNDVNFDPSV",
+              "cadence": "MONTHLY",
+              "ordinal": 0,
+              "periods": null,
+              "pricing": {
+                "type": "STATIC",
+                "price": {
+                  "amount": 1295,
+                  "currency": "USD"
+                },
+                "price_money": {
+                  "amount": 1295,
+                  "currency": "USD"
+                }
+              }
+            }
+          ],
+          "subscription_plan_id": "ASYT743HAIAI3NHLOA6EKF7Q"
+        },
+        "type": "SUBSCRIPTION_PLAN_VARIATION",
+        "updated_at": "2023-10-14T20:48:58.308Z",
+        "version": 1697316538308
+      }
+    ]
+  }
+}

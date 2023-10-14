@@ -1,5 +1,6 @@
 use serde::{Serialize, Deserialize};
 use crate::{Source, Price};
+use crate::types::SubscriptionPlanResponseObject;
 
 pub struct CheckoutBuilder {
   pub name: String,
@@ -58,53 +59,54 @@ pub struct CheckoutResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PaymentLink {
-  pub id: String,
-  pub version: u64,
-  pub description: String,
-  pub order_id: String,
   pub checkout_options: CheckoutOptions,
-  pub url: String,
   pub created_at: String,
+  pub id: String,
+  pub long_url: String,
+  pub order_id: String,
+  pub url: String,
+  pub version: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RelatedResources {
   pub orders: Vec<Order>,
+  pub subscription_plans: Vec<SubscriptionPlanResponseObject>
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Order {
-  pub id: String,
-  pub location_id: String,
-  pub source: Source,
-  pub line_items: Vec<LineItem>,
-  pub fulfillments: Vec<Fulfillment>,
-  pub net_amounts: Vec<NetAmounts>,
   pub created_at: String,
-  pub updated_at: String,
-  /// DRAFT
+  pub fulfillments: Vec<Fulfillment>,
+  pub id: String,
+  pub line_items: Vec<LineItem>,
+  pub location_id: String,
+  pub net_amount_due_money: Price,
+  pub net_amounts: NetAmounts,
+  pub source: Source,
   pub state: String,
-  pub version: u64,
-  pub total_money: Price,
-  pub total_tax_money: Price,
   pub total_discount_money: Price,
-  pub total_tip_money: Price,
+  pub total_money: Price,
   pub total_service_charge_money: Price,
+  pub total_tax_money: Price,
+  pub total_tip_money: Price,
+  pub updated_at: String,
+  pub version: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LineItem {
-  pub uid: String,
+  pub base_price_money: Price,
+  pub gross_sales_money: Price,
+  pub item_type: String,
   pub name: String,
   pub quantity: String,
-  /// ITEM
-  pub item_type: String,
-  pub base_price_money: Price,
-  pub variation_total_price_money: Price,
-  pub gross_sales_money: Price,
-  pub total_tax_money: Price,
   pub total_discount_money: Price,
   pub total_money: Price,
+  pub total_service_charge_money: Price,
+  pub total_tax_money: Price,
+  pub uid: String,
+  pub variation_total_price_money: Price,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -119,31 +121,16 @@ pub struct Fulfillment {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NetAmounts {
-  pub total_money: Price,
-  pub tax_money: Price,
   pub discount_money: Price,
-  pub tip_money: Price,
   pub service_charge_money: Price,
+  pub tax_money: Price,
+  pub tip_money: Price,
+  pub total_money: Price,
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CheckoutInfo {
+  pub url: String,
+  /// Amount is in cents
+  pub amount: u64
+}
