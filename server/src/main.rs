@@ -57,6 +57,7 @@ async fn main() -> std::io::Result<()> {
           .service(upsert_catalog)
           .service(create_order_template)
           .service(subscribe)
+          .service(subscriptions)
           .route("/", web::get().to(test))
     })
       .bind(bind_address)?
@@ -218,4 +219,12 @@ async fn subscribe(mut payload: web::Payload) -> Result<HttpResponse, Error> {
     let client = SQUARE_CLIENT.lock().await;
     let subscribe = client.subscribe_customer(request).await?;
     Ok(HttpResponse::Ok().json(subscribe))
+}
+
+// todo: protect
+#[get("/subscriptions")]
+async fn subscriptions() -> Result<HttpResponse, Error> {
+    let client = SQUARE_CLIENT.lock().await;
+    let list = client.list_subscriptions().await?;
+    Ok(HttpResponse::Ok().json(list))
 }

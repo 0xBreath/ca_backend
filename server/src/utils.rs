@@ -189,13 +189,39 @@ impl SquareClient {
       .send()
       .await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to send POST subscription to Square")).unwrap();
     let subscription = res.json::<SubscriptionResponse>().await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to parse POST subscription response from Square")).unwrap();
-    info!("Square subscription: {:?}", &subscription);
+    debug!("Square subscription: {:?}", &subscription);
 
     Ok(subscription)
   }
 
-  pub async fn list_subscriptions(&self) {
+  pub async fn list_subscriptions(&self) -> Result<Vec<SubscriptionResponse>, Error> {
+    let list_subs_endpoint = self.base_url.clone() + "subscriptions/search";
+    let list_res = self.client.post(list_subs_endpoint)
+      .header("Square-Version", self.version.clone())
+      .bearer_auth(self.token.clone())
+      .header("Content-Type", "application/json")
+      .send()
+      .await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to send POST subscription search to Square")).unwrap();
+    let list = list_res.json::<SubscriptionSearchResponse>().await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to parse POST subscription search response from Square")).unwrap();
+    debug!("Square subscription list: {:?}", &list);
 
+    let mut subscriptions = Vec::<SubscriptionResponse>::new();
+    for sub in list.subscriptions.into_iter() {
+      let retrieve_endpoint = self.base_url.clone() + "subscriptions/" + &*sub.id + "?include=actions";
+      info!("Sub ID: {}", &sub.id);
+
+      let res = self.client.get(retrieve_endpoint)
+        .header("Square-Version", self.version.clone())
+        .bearer_auth(self.token.clone())
+        .header("Content-Type", "application/json")
+        .send()
+        .await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to GET subscription from Square")).unwrap();
+      let sub = res.json::<SubscriptionResponse>().await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to parse GET retrieve subscription response from Square")).unwrap();
+      debug!("Square subscription: {:?}", &sub);
+      subscriptions.push(sub);
+    }
+
+    Ok(subscriptions)
   }
 }
 

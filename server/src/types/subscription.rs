@@ -42,15 +42,27 @@ pub struct SubscriptionResponseObject {
   pub location_id: String,
   pub customer_id: String,
   pub start_date: String,
+  pub charged_through_date: Option<String>,
   /// ACTIVE
   pub status: String,
+  pub invoice_ids: Option<Vec<String>>,
   pub version: u64,
   pub created_at: String,
   /// UTC
   pub timezone: String,
   pub source: Source,
   pub phases: Option<Vec<PlanPhaseResponse>>,
-  pub plan_variation_id: String
+  pub plan_variation_id: String,
+  pub actions: Option<Vec<Action>>
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Action {
+  pub id: String,
+  #[serde(rename = "type")]
+  pub type_: String,
+  pub effective_date: String,
+  pub new_plan_id: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -65,3 +77,28 @@ pub struct PlanPhaseResponse {
 pub struct Source {
   pub name: String,
 }
+
+// ==================== Subscription Search Response ====================
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SubscriptionSearchResponse {
+  pub subscriptions: Vec<SubscriptionResponseObject>
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
