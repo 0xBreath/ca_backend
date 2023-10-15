@@ -12,6 +12,7 @@ pub struct SquareClient {
   pub catalog_id: String,
   pub subscription_price: u64,
   pub subscription_name: String,
+  pub redirect_url: String,
 }
 
 impl SquareClient {
@@ -25,6 +26,7 @@ impl SquareClient {
       catalog_id: std::env::var("SQUARE_CATALOG_ID").unwrap_or_else(|_| "".to_string()),
       subscription_price: std::env::var("SQUARE_SUBSCRIPTION_PRICE").unwrap_or_else(|_| "".to_string()).parse::<u64>().unwrap(),
       subscription_name: std::env::var("SQUARE_SUBSCRIPTION_NAME").unwrap_or_else(|_| "".to_string()),
+      redirect_url: std::env::var("SQUARE_REDIRECT_URL").unwrap_or_else(|_| "".to_string()),
     }
   }
 
@@ -188,6 +190,7 @@ impl SquareClient {
         price: self.subscription_price,
         location_id,
         subscription_plan_id,
+        redirect_url: self.redirect_url.clone(),
       }))
       .send()
       .await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to send POST subscription checkout to Square"))?;

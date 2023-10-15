@@ -7,6 +7,7 @@ pub struct CheckoutBuilder {
   pub price: u64,
   pub location_id: String,
   pub subscription_plan_id: String,
+  pub redirect_url: String,
 }
 
 // ======================= Subscribe Request =======================
@@ -15,7 +16,7 @@ pub struct CheckoutBuilder {
 pub struct CheckoutRequest {
   pub idempotency_key: String,
   pub quick_pay: QuickPay,
-  pub pre_populated_data: PrePopulatedData,
+  pub pre_populated_data: Option<PrePopulatedData>,
   pub checkout_options: CheckoutOptions
 }
 
@@ -31,12 +32,10 @@ impl CheckoutRequest {
         },
         location_id: request.location_id,
       },
-      pre_populated_data: PrePopulatedData {
-        buyer_email: Some("buyer@email.com".to_string()),
-        ..Default::default()
-      },
+      pre_populated_data: None,
       checkout_options: CheckoutOptions {
         subscription_plan_id: request.subscription_plan_id,
+        redirect_url: Some(request.redirect_url),
       }
     }
   }
@@ -49,9 +48,10 @@ pub struct QuickPay {
   pub location_id: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct CheckoutOptions {
   pub subscription_plan_id: String,
+  pub redirect_url: Option<String>,
 }
 
 // ======================= Subscribe Response =======================
@@ -65,7 +65,7 @@ pub struct CheckoutResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PaymentLink {
   pub checkout_options: CheckoutOptions,
-  pub pre_populated_data: PrePopulatedData,
+  pub pre_populated_data: Option<PrePopulatedData>,
   pub created_at: String,
   pub id: String,
   pub long_url: String,
