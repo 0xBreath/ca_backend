@@ -223,7 +223,7 @@ impl SquareClient {
     debug!("Square customer list: {:?}", &list);
     Ok(list)
   }
-  
+
   pub async fn list_invoices(&self) -> Result<InvoiceListResponse, Error> {
     let endpoint = self.base_url.clone() + "invoices?location_id=" + &*self.location_id;
     let res = self.client.get(endpoint)
@@ -244,6 +244,14 @@ impl SquareClient {
       family_name: invoice.primary_recipient.family_name,
       given_name: invoice.primary_recipient.given_name,
     }).collect();
+    // filter out duplicate email_address
+    let mut emails: Vec<CustomerEmailInfo> = emails.into_iter().fold(Vec::new(), |mut acc, email| {
+      if !acc.iter().any(|e| e.email_address == email.email_address) {
+        acc.push(email);
+      }
+      acc
+    });
+
     Ok(emails)
   }
 }
