@@ -77,6 +77,8 @@ impl SquareClient {
     }
   }
 
+  /// After creating a catalog, use the result.catalog_object.subscription_plan_variation_data.subscription_plan_id`
+  /// to set as the SQUARE_CATALOG_ID in the env
   pub async fn upsert_catalog(&self) -> Result<SubscriptionPlanResponse, Error> {
     let catalog_endpoint = self.base_url.clone() + "catalog/object";
 
@@ -123,6 +125,7 @@ impl SquareClient {
     let catalog_list = catalog_list_res.json::<CatalogListResponse>().await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to parse catalog subscription plan response from Square"))?;
     debug!("Square catalog list: {:?}", &catalog_list);
 
+    // this the SUBSCRIPTION_PLAN catalog object id, which should match SQUARE_CATALOG_ID in env
     let catalog = catalog_list.objects.into_iter().find(|plan| plan.id == self.catalog_id).unwrap();
     debug!("Square catalog: {:?}", &catalog);
     Ok(catalog)
@@ -186,7 +189,7 @@ impl SquareClient {
       .bearer_auth(self.token.clone())
       .header("Content-Type", "application/json")
       .json(&CheckoutRequest::new(CheckoutBuilder {
-        name: "Premium".to_string(),
+        name: self.subscription_name.to_string(),
         price: self.subscription_price,
         location_id,
         subscription_plan_id,
