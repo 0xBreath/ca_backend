@@ -83,6 +83,10 @@ https://consciousness-archive-483dcd2b5c76.herokuapp.com
 ```
 
 
+### Set Up Square Subscription
+TODO
+
+
 ### TODO
 <h4 style="color: red"> High </h4>
   - GCP load balancer for CDN

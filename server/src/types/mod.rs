@@ -4,6 +4,7 @@ pub mod customer;
 pub mod checkout;
 pub mod location;
 pub mod subscription;
+pub mod invoice;
 
 pub use card::*;
 pub use catalog::*;
@@ -11,6 +12,7 @@ pub use customer::*;
 pub use checkout::*;
 pub use location::*;
 pub use subscription::*;
+pub use invoice::*;
 
 use serde::{Serialize, Deserialize};
 
@@ -34,4 +36,11 @@ pub struct Pricing {
   pub type_: String,
   pub price: Option<Price>,
   pub price_money: Option<Price>
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct CustomerEmailInfo {
+  pub email_address: String,
+  pub family_name: String,
+  pub given_name: String,
 }

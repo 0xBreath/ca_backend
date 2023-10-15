@@ -125,7 +125,8 @@ impl SquareClient {
     let catalog_list = catalog_list_res.json::<CatalogListResponse>().await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to parse catalog subscription plan response from Square"))?;
     debug!("Square catalog list: {:?}", &catalog_list);
 
-    // this the SUBSCRIPTION_PLAN catalog object id, which should match SQUARE_CATALOG_ID in env
+    // this is SUBSCRIPTION_PLAN catalog.catalog_object.subscription_plan_variation_data.subscription_plan_id
+    // which should match SQUARE_CATALOG_ID in env
     let catalog = catalog_list.objects.into_iter().find(|plan| plan.id == self.catalog_id).unwrap();
     debug!("Square catalog: {:?}", &catalog);
     Ok(catalog)
@@ -209,9 +210,9 @@ impl SquareClient {
     Ok(checkout_info)
   }
 
+  /// Provides customer name and card, but not email
   pub async fn list_customers(&self) -> Result<CustomerListResponse, Error> {
     let endpoint = self.base_url.clone() + "customers?limit=10&sort_field=CREATED_AT&sort_order=DESC";
-
     let res = self.client.get(endpoint)
       .header("Square-Version", self.version.clone())
       .bearer_auth(self.token.clone())
@@ -221,6 +222,29 @@ impl SquareClient {
     let list = res.json::<CustomerListResponse>().await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to parse GET customers response from Square"))?;
     debug!("Square customer list: {:?}", &list);
     Ok(list)
+  }
+  
+  pub async fn list_invoices(&self) -> Result<InvoiceListResponse, Error> {
+    let endpoint = self.base_url.clone() + "invoices?location_id=" + &*self.location_id;
+    let res = self.client.get(endpoint)
+      .header("Square-Version", self.version.clone())
+      .bearer_auth(self.token.clone())
+      .header("Content-Type", "application/json")
+      .send()
+      .await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to GET invoices from Square")).unwrap();
+    let list = res.json::<InvoiceListResponse>().await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to parse GET invoices response from Square")).unwrap();
+    Ok(list)
+  }
+
+  // get customer email via invoices endpoint
+  pub async fn email_list(&self) -> Result<Vec<CustomerEmailInfo>, Error> {
+    let invoices = self.list_invoices().await?;
+    let emails: Vec<CustomerEmailInfo> = invoices.invoices.into_iter().map(|invoice| CustomerEmailInfo {
+      email_address: invoice.primary_recipient.email_address,
+      family_name: invoice.primary_recipient.family_name,
+      given_name: invoice.primary_recipient.given_name,
+    }).collect();
+    Ok(emails)
   }
 }
 

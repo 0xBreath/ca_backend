@@ -58,6 +58,8 @@ async fn main() -> std::io::Result<()> {
           .service(subscribe)
           .service(subscriptions)
           .service(customers)
+          .service(invoices)
+          .service(email_list)
           .route("/", web::get().to(test))
     })
       .bind(bind_address)?
@@ -205,5 +207,21 @@ async fn subscriptions() -> Result<HttpResponse, Error> {
 async fn customers() -> Result<HttpResponse, Error> {
     let client = SQUARE_CLIENT.lock().await;
     let list = client.list_customers().await?;
+    Ok(HttpResponse::Ok().json(list))
+}
+
+// todo: protect
+#[get("/invoices")]
+async fn invoices() -> Result<HttpResponse, Error> {
+    let client = SQUARE_CLIENT.lock().await;
+    let list = client.list_invoices().await?;
+    Ok(HttpResponse::Ok().json(list))
+}
+
+// todo: protect
+#[get("/email_list")]
+async fn email_list() -> Result<HttpResponse, Error> {
+    let client = SQUARE_CLIENT.lock().await;
+    let list = client.email_list().await?;
     Ok(HttpResponse::Ok().json(list))
 }

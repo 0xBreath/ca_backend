@@ -39,26 +39,26 @@ pub struct SubscriptionResponse {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SubscriptionResponseObject {
-  pub id: String,
-  pub location_id: String,
-  pub customer_id: String,
-  pub start_date: String,
-  pub charged_through_date: Option<String>,
+  pub actions: Option<Vec<Action>>,
+  pub buyer_self_management_token: String,
   pub canceled_date: Option<String>,
-  /// ACTIVE
-  pub status: String,
-  pub tax_percentage: Option<String>,
-  pub price_override_money: Option<Price>,
-  pub invoice_ids: Option<Vec<String>>,
-  pub version: u64,
   pub card_id: Option<String>,
+  pub charged_through_date: Option<String>,
   pub created_at: String,
-  /// UTC
-  pub timezone: String,
-  pub source: Source,
+  pub customer_id: String,
+  pub id: String,
+  pub invoice_ids: Option<Vec<String>>,
+  pub location_id: String,
+  pub order_template_id: String,
   pub phases: Option<Vec<PlanPhaseResponse>>,
   pub plan_variation_id: String,
-  pub actions: Option<Vec<Action>>
+  pub source: Source,
+  pub start_date: String,
+  pub status: String,
+  pub timezone: String,
+  pub version: u64,
+  pub tax_percentage: Option<String>,
+  pub price_override_money: Option<Price>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -67,7 +67,7 @@ pub struct Action {
   #[serde(rename = "type")]
   pub type_: String,
   pub effective_date: String,
-  pub new_plan_id: String,
+  pub new_plan_id: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
