@@ -56,6 +56,7 @@ async fn main() -> std::io::Result<()> {
         App::new()
           .wrap(auth)
           .wrap(cors)
+          .service(test)
           .service(articles)
           .service(calibrations)
           .service(testimonials)
@@ -65,7 +66,7 @@ async fn main() -> std::io::Result<()> {
           .service(customers)
           .service(invoices)
           .service(email_list)
-          .service(test)
+          .service(user_info)
     })
       .bind(bind_address)?
       .run()
@@ -181,6 +182,25 @@ async fn subscribe(mut payload: web::Payload) -> Result<HttpResponse, Error> {
     let subscribe = client.subscribe(buyer_email).await?;
     info!("Checkout: {:?}", &subscribe);
     Ok(HttpResponse::Ok().json(subscribe))
+}
+
+#[post("/user")]
+async fn user_info(mut payload: web::Payload) -> Result<HttpResponse, Error> {
+    let mut body = web::BytesMut::new();
+    while let Some(chunk) = payload.next().await {
+        let chunk = chunk?;
+        if (body.len() + chunk.len()) > MAX_SIZE {
+            return Err(actix_web::error::ErrorBadRequest("Subscribe POST request bytes overflow"));
+        }
+        body.extend_from_slice(&chunk);
+    }
+
+    let buyer_email = serde_json::from_slice::<UserEmailRequest>(&body)?;
+    info!("Subscribe user email: {:?}", &buyer_email);
+    let client = SQUARE_CLIENT.lock().await;
+    let customer: Option<CustomerInfo> = client.get_customer(buyer_email).await?;
+    info!("Get customer: {:?}", &customer);
+    Ok(HttpResponse::Ok().json(customer))
 }
 
 // ================================== ADMIN API ================================== //

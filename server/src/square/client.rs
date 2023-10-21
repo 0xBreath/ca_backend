@@ -32,6 +32,41 @@ impl SquareClient {
     }
   }
 
+  pub async fn get_customer(&self, request: UserEmailRequest) -> Result<Option<CustomerInfo>, Error> {
+    if request.email.is_none() {
+      return Ok(None);
+    }
+    let search_customer_endpoint = self.base_url.clone() + "v2/customers/search";
+    let query = SearchCustomerRequest::new(request.email.unwrap()).to_value()?;
+    let search_res = self.client.post(search_customer_endpoint)
+      .header("Square-Version", self.version.clone())
+      .bearer_auth(self.token.clone())
+      .json(&query)
+      .send()
+      .await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to send POST customer search to Square"))?;
+    debug!("POST Square search customer: {:?}", &search_res);
+    let customer_search = search_res.json::<SearchCustomerResponse>().await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to parse SearchCustomerResponse from Square"))?;
+
+    if customer_search.customers.is_empty() {
+      Ok(None)
+    } else {
+      let customer = customer_search.customers[0].clone();
+      let info = CustomerInfo {
+        email_address: customer.email_address,
+        family_name: customer.family_name,
+        given_name: customer.given_name,
+        cards: customer.cards.map(|cards| cards.into_iter().map(|card| CardInfo {
+          card_brand: card.card_brand,
+          last_4: card.last_4,
+          exp_month: card.exp_month,
+          exp_year: card.exp_year,
+          cardholder_name: card.cardholder_name,
+        }).collect())
+      };
+      Ok(Some(info))
+    }
+  }
+
   pub async fn update_customer(&self, request: CustomerRequest) -> Result<CustomerResponse, Error> {
     // POST customer search
     let search_customer_endpoint = self.base_url.clone() + "v2/customers/search";

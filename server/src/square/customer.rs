@@ -11,14 +11,14 @@ pub struct CustomerRequest {
   pub address: Address
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Preferences {
   pub email_unsubscribed: bool,
 }
 
 // ======================= Create Customer Response =======================
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CustomerResponse {
   pub created_at: String,
   pub creation_source: String,
@@ -32,7 +32,7 @@ pub struct CustomerResponse {
   pub cards: Option<Vec<Card>>
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Card {
   pub id: String,
   pub card_brand: String,
@@ -100,4 +100,21 @@ pub struct SearchCustomerResponse {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CustomerListResponse {
   pub customers: Vec<CustomerResponse>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CustomerInfo {
+  pub email_address: String,
+  pub family_name: String,
+  pub given_name: String,
+  pub cards: Option<Vec<CardInfo>>
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CardInfo {
+  pub card_brand: String,
+  pub last_4: String,
+  pub exp_month: u8,
+  pub exp_year: u16,
+  pub cardholder_name: String,
 }
