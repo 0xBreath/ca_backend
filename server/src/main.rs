@@ -10,7 +10,7 @@ use oauth::*;
 extern crate lazy_static;
 
 use actix_cors::Cors;
-use actix_web::{get, web, App, Error, HttpResponse, HttpServer, Responder, Result};
+use actix_web::{get, web, App, Error, HttpResponse, HttpServer, Responder, Result, post};
 use actix_web::http::header;
 use dotenv::dotenv;
 use log::*;
@@ -24,6 +24,7 @@ use std::str::FromStr;
 use actix_web_httpauth::middleware::HttpAuthentication;
 use lazy_static::lazy_static;
 use tokio::sync::Mutex;
+use futures::StreamExt;
 
 const MAX_SIZE: usize = 262_144; // max payload size is 256k
 
@@ -53,8 +54,8 @@ async fn main() -> std::io::Result<()> {
         let auth = HttpAuthentication::bearer(validator);
 
         App::new()
+          .wrap(auth)
           .wrap(cors)
-          // .wrap(auth)
           .service(articles)
           .service(calibrations)
           .service(testimonials)
@@ -64,7 +65,7 @@ async fn main() -> std::io::Result<()> {
           .service(customers)
           .service(invoices)
           .service(email_list)
-          .route("/", web::get().to(test))
+          .service(test)
     })
       .bind(bind_address)?
       .run()
@@ -89,8 +90,9 @@ pub fn init_logger(log_file: &PathBuf) -> std::io::Result<()> {
     ]).map_err(|_| std::io::Error::new(std::io::ErrorKind::Other, "Failed to initialize logger"))
 }
 
+#[get("/")]
 async fn test() -> impl Responder {
-    HttpResponse::Ok().body("Server is running...")
+    HttpResponse::Ok().body("Consciousness Archive server is running...")
 }
 
 #[get("/articles")]
@@ -111,7 +113,7 @@ async fn articles() -> Result<HttpResponse, Error> {
         let article = bincode::deserialize::<Article>(&db_article).expect("Failed to deserialize article");
         articles.push(article);
     }
-    info!("GET articles: {:?}", &articles.len());
+    debug!("GET articles: {:?}", &articles.len());
 
     Ok(HttpResponse::Ok().json(articles))
 }
@@ -134,7 +136,7 @@ async fn calibrations() -> Result<HttpResponse, Error> {
         let calibration = bincode::deserialize::<Calibration>(&db_calibration).expect("Failed to deserialize calibration");
         calibrations.push(calibration);
     }
-    info!("GET calibrations: {:?}", &calibrations.len());
+    debug!("GET calibrations: {:?}", &calibrations.len());
 
     Ok(HttpResponse::Ok().json(calibrations))
 }
@@ -157,18 +159,26 @@ async fn testimonials() -> Result<HttpResponse, Error> {
         let testimonial = bincode::deserialize::<Testimonial>(&db_testimonial).expect("Failed to deserialize testimonial");
         testimonials.push(testimonial);
     }
-    info!("GET testimonials: {:?}", &testimonials.len());
+    debug!("GET testimonials: {:?}", &testimonials.len());
 
     Ok(HttpResponse::Ok().json(testimonials))
 }
 
-// ================================== OAUTH PROTECTED API ================================== //
+#[post("/subscribe")]
+async fn subscribe(mut payload: web::Payload) -> Result<HttpResponse, Error> {
+    let mut body = web::BytesMut::new();
+    while let Some(chunk) = payload.next().await {
+        let chunk = chunk?;
+        if (body.len() + chunk.len()) > MAX_SIZE {
+            return Err(actix_web::error::ErrorBadRequest("Subscribe POST request bytes overflow"));
+        }
+        body.extend_from_slice(&chunk);
+    }
 
-// todo: scope = api
-#[get("/subscribe")]
-async fn subscribe() -> Result<HttpResponse, Error> {
+    let buyer_email = serde_json::from_slice::<UserEmailRequest>(&body)?;
+    info!("Subscribe user email: {:?}", &buyer_email);
     let client = SQUARE_CLIENT.lock().await;
-    let subscribe = client.subscribe().await?;
+    let subscribe = client.subscribe(buyer_email).await?;
     info!("Checkout: {:?}", &subscribe);
     Ok(HttpResponse::Ok().json(subscribe))
 }
@@ -214,23 +224,3 @@ async fn invoices() -> Result<HttpResponse, Error> {
     let list = client.list_invoices().await?;
     Ok(HttpResponse::Ok().json(list))
 }
-
-// // todo: scope = admin
-// Not needed. Subscription checkout link handles this.
-// #[post("/create_customer")]
-// async fn create_customer(mut payload: web::Payload) -> Result<HttpResponse, Error> {
-//     let mut body = web::BytesMut::new();
-//     while let Some(chunk) = payload.next().await {
-//         let chunk = chunk?;
-//         if (body.len() + chunk.len()) > MAX_SIZE {
-//             return Err(actix_web::error::ErrorBadRequest("Subscribe POST request bytes overflow"));
-//         }
-//         body.extend_from_slice(&chunk);
-//     }
-//
-//     let request = serde_json::from_slice::<CustomerRequest>(&body)?;
-//     debug!("Update customer request: {:?}", &request);
-//     let client = SQUARE_CLIENT.lock().await;
-//     let customer = client.update_customer(request).await?;
-//     Ok(HttpResponse::Ok().json(customer))
-// }

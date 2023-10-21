@@ -179,7 +179,7 @@ impl SquareClient {
     Ok(subs)
   }
 
-  pub async fn subscribe(&self) -> Result<CheckoutInfo, Error> {
+  pub async fn subscribe(&self, user_email: UserEmailRequest) -> Result<CheckoutInfo, Error> {
     let checkout_endpoint = self.base_url.clone() + "v2/online-checkout/payment-links";
     let subscription_plan_id = self.get_catalog().await?.subscription_plan_data
       .subscription_plan_variations.unwrap()
@@ -197,11 +197,12 @@ impl SquareClient {
         location_id,
         subscription_plan_id,
         redirect_url: self.redirect_url.clone(),
+        buyer_email: user_email.email
       }))
       .send()
       .await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to send POST subscription checkout to Square"))?;
     let checkout = res.json::<CheckoutResponse>().await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to parse POST subscription checkout response from Square"))?;
-    info!("Square subscription checkout: {:?}", &checkout);
+    debug!("Square subscription checkout: {:?}", &checkout);
 
     let checkout_info = CheckoutInfo {
       url: checkout.payment_link.url,

@@ -11,12 +11,14 @@ use log::*;
 // https://auth0.com/blog/build-an-api-in-rust-with-jwt-authentication-using-actix-web/#Getting-Started
 
 pub async fn validator(req: ServiceRequest, credentials: BearerAuth) -> Result<ServiceRequest, (ActixError, ServiceRequest)> {
+  debug!("req: {:?}", req);
+  debug!("credentials: {:?}", credentials);
   let config = req
     .app_data::<Config>().cloned().unwrap_or_default();
   match validate_token(credentials.token()).await {
     Ok(res) => {
       if res {
-        info!("Token validated");
+        debug!("Token validated");
         Ok(req)
       } else {
         info!("Token validation failed");
@@ -24,7 +26,7 @@ pub async fn validator(req: ServiceRequest, credentials: BearerAuth) -> Result<S
       }
     }
     Err(_) => {
-      info!("Token validation errored");
+      error!("Token validation errored");
       Err((AuthenticationError::from(config).into(), req))
     },
   }

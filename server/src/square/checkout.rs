@@ -2,12 +2,18 @@ use serde::{Serialize, Deserialize};
 use crate::{Source, Price};
 use crate::{Address, SubscriptionPlanResponseObject};
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserEmailRequest {
+  pub email: Option<String>
+}
+
 pub struct CheckoutBuilder {
   pub name: String,
   pub price: u64,
   pub location_id: String,
   pub subscription_plan_id: String,
   pub redirect_url: String,
+  pub buyer_email: Option<String>,
 }
 
 // ======================= Subscribe Request =======================
@@ -32,7 +38,10 @@ impl CheckoutRequest {
         },
         location_id: request.location_id,
       },
-      pre_populated_data: None,
+      pre_populated_data: Some(PrePopulatedData {
+        buyer_email: request.buyer_email,
+        ..Default::default()
+      }),
       checkout_options: CheckoutOptions {
         subscription_plan_id: request.subscription_plan_id,
         redirect_url: Some(request.redirect_url),
