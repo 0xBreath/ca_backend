@@ -197,6 +197,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "actix-web-httpauth"
+version = "0.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1d613edf08a42ccc6864c941d30fe14e1b676a77d16f1dbadc1174d065a0a775"
+dependencies = [
+ "actix-utils",
+ "actix-web",
+ "base64 0.21.4",
+ "futures-core",
+ "futures-util",
+ "log",
+ "pin-project-lite",
+]
+
+[[package]]
 name = "addr2line"
 version = "0.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -249,6 +264,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ea5d730647d4fadd988536d06fecce94b7b4f2a7efdae548f1cf4b63205518ab"
 dependencies = [
  "memchr",
+]
+
+[[package]]
+name = "alcoholic_jwt"
+version = "4091.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fb8a1270ac7729a671a2d0f7d959e6572330d4da9f6b797165f6b08244019b9e"
+dependencies = [
+ "base64 0.13.1",
+ "openssl",
+ "serde",
+ "serde_derive",
+ "serde_json",
 ]
 
 [[package]]
@@ -1848,10 +1876,13 @@ version = "0.1.0"
 dependencies = [
  "actix-cors",
  "actix-web",
+ "actix-web-httpauth",
+ "alcoholic_jwt",
  "anyhow",
  "bincode",
  "chrono",
  "database",
+ "derive_more",
  "dotenv",
  "error-chain",
  "futures",

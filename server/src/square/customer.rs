@@ -1,5 +1,5 @@
 use serde::{Serialize, Deserialize};
-use crate::types::Address;
+use crate::Address;
 
 // ======================= Create Customer Request =======================
 

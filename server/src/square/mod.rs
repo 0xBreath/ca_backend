@@ -5,6 +5,7 @@ pub mod checkout;
 pub mod location;
 pub mod subscription;
 pub mod invoice;
+pub mod client;
 
 pub use card::*;
 pub use catalog::*;
@@ -13,6 +14,7 @@ pub use checkout::*;
 pub use location::*;
 pub use subscription::*;
 pub use invoice::*;
+pub use client::*;
 
 use serde::{Serialize, Deserialize};
 

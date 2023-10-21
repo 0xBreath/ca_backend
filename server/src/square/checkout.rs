@@ -1,6 +1,6 @@
 use serde::{Serialize, Deserialize};
 use crate::{Source, Price};
-use crate::types::{Address, SubscriptionPlanResponseObject};
+use crate::{Address, SubscriptionPlanResponseObject};
 
 pub struct CheckoutBuilder {
   pub name: String,

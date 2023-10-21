@@ -1,14 +1,16 @@
-mod utils;
-mod types;
+mod square;
+mod errors;
+mod oauth;
 
-use types::*;
-use utils::*;
+use square::*;
+use errors::*;
+use oauth::*;
 
 #[macro_use]
 extern crate lazy_static;
 
 use actix_cors::Cors;
-use actix_web::{get, post, web, App, Error, HttpResponse, HttpServer, Responder, Result};
+use actix_web::{get, web, App, Error, HttpResponse, HttpServer, Responder, Result};
 use actix_web::http::header;
 use dotenv::dotenv;
 use log::*;
@@ -19,7 +21,7 @@ use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
 use std::str::FromStr;
-use futures::StreamExt;
+use actix_web_httpauth::middleware::HttpAuthentication;
 use lazy_static::lazy_static;
 use tokio::sync::Mutex;
 
@@ -48,12 +50,14 @@ async fn main() -> std::io::Result<()> {
           .allowed_headers(vec![header::AUTHORIZATION, header::ACCEPT, header::CONTENT_TYPE])
           .max_age(3600);
 
+        let auth = HttpAuthentication::bearer(validator);
+
         App::new()
           .wrap(cors)
+          // .wrap(auth)
           .service(articles)
           .service(calibrations)
           .service(testimonials)
-          .service(create_customer)
           .service(upsert_catalog)
           .service(subscribe)
           .service(subscriptions)
@@ -84,7 +88,6 @@ pub fn init_logger(log_file: &PathBuf) -> std::io::Result<()> {
         ),
     ]).map_err(|_| std::io::Error::new(std::io::ErrorKind::Other, "Failed to initialize logger"))
 }
-
 
 async fn test() -> impl Responder {
     HttpResponse::Ok().body("Server is running...")
@@ -159,26 +162,20 @@ async fn testimonials() -> Result<HttpResponse, Error> {
     Ok(HttpResponse::Ok().json(testimonials))
 }
 
-// todo: protect
-#[post("/create_customer")]
-async fn create_customer(mut payload: web::Payload) -> Result<HttpResponse, Error> {
-    let mut body = web::BytesMut::new();
-    while let Some(chunk) = payload.next().await {
-        let chunk = chunk?;
-        if (body.len() + chunk.len()) > MAX_SIZE {
-            return Err(actix_web::error::ErrorBadRequest("Subscribe POST request bytes overflow"));
-        }
-        body.extend_from_slice(&chunk);
-    }
+// ================================== OAUTH PROTECTED API ================================== //
 
-    let request = serde_json::from_slice::<CustomerRequest>(&body)?;
-    debug!("Update customer request: {:?}", &request);
+// todo: scope = api
+#[get("/subscribe")]
+async fn subscribe() -> Result<HttpResponse, Error> {
     let client = SQUARE_CLIENT.lock().await;
-    let customer = client.update_customer(request).await?;
-    Ok(HttpResponse::Ok().json(customer))
+    let subscribe = client.subscribe().await?;
+    info!("Checkout: {:?}", &subscribe);
+    Ok(HttpResponse::Ok().json(subscribe))
 }
 
-// todo: protect
+// ================================== ADMIN API ================================== //
+
+// todo: scope = admin
 #[get("/upsert_catalog")]
 async fn upsert_catalog() -> Result<HttpResponse, Error> {
     let client = SQUARE_CLIENT.lock().await;
@@ -186,15 +183,7 @@ async fn upsert_catalog() -> Result<HttpResponse, Error> {
     Ok(HttpResponse::Ok().json(catalog))
 }
 
-// todo: protect
-#[get("/subscribe")]
-async fn subscribe() -> Result<HttpResponse, Error> {
-    let client = SQUARE_CLIENT.lock().await;
-    let subscribe = client.subscribe().await?;
-    Ok(HttpResponse::Ok().json(subscribe))
-}
-
-// todo: protect
+// todo: scope = admin
 #[get("/subscriptions")]
 async fn subscriptions() -> Result<HttpResponse, Error> {
     let client = SQUARE_CLIENT.lock().await;
@@ -202,7 +191,15 @@ async fn subscriptions() -> Result<HttpResponse, Error> {
     Ok(HttpResponse::Ok().json(list))
 }
 
-// todo: protect
+// todo: scope = admin
+#[get("/email_list")]
+async fn email_list() -> Result<HttpResponse, Error> {
+    let client = SQUARE_CLIENT.lock().await;
+    let list = client.email_list().await?;
+    Ok(HttpResponse::Ok().json(list))
+}
+
+// todo: scope = admin
 #[get("/customers")]
 async fn customers() -> Result<HttpResponse, Error> {
     let client = SQUARE_CLIENT.lock().await;
@@ -210,7 +207,7 @@ async fn customers() -> Result<HttpResponse, Error> {
     Ok(HttpResponse::Ok().json(list))
 }
 
-// todo: protect
+// todo: scope = admin
 #[get("/invoices")]
 async fn invoices() -> Result<HttpResponse, Error> {
     let client = SQUARE_CLIENT.lock().await;
@@ -218,10 +215,22 @@ async fn invoices() -> Result<HttpResponse, Error> {
     Ok(HttpResponse::Ok().json(list))
 }
 
-// todo: protect
-#[get("/email_list")]
-async fn email_list() -> Result<HttpResponse, Error> {
-    let client = SQUARE_CLIENT.lock().await;
-    let list = client.email_list().await?;
-    Ok(HttpResponse::Ok().json(list))
-}
+// // todo: scope = admin
+// Not needed. Subscription checkout link handles this.
+// #[post("/create_customer")]
+// async fn create_customer(mut payload: web::Payload) -> Result<HttpResponse, Error> {
+//     let mut body = web::BytesMut::new();
+//     while let Some(chunk) = payload.next().await {
+//         let chunk = chunk?;
+//         if (body.len() + chunk.len()) > MAX_SIZE {
+//             return Err(actix_web::error::ErrorBadRequest("Subscribe POST request bytes overflow"));
+//         }
+//         body.extend_from_slice(&chunk);
+//     }
+//
+//     let request = serde_json::from_slice::<CustomerRequest>(&body)?;
+//     debug!("Update customer request: {:?}", &request);
+//     let client = SQUARE_CLIENT.lock().await;
+//     let customer = client.update_customer(request).await?;
+//     Ok(HttpResponse::Ok().json(customer))
+// }

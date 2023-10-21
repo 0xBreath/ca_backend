@@ -1,5 +1,5 @@
 use actix_web::{Error};
-use crate::types::*;
+use crate::*;
 use log::*;
 use reqwest::Client;
 
@@ -8,6 +8,7 @@ pub struct SquareClient {
   pub base_url: String,
   pub token: String,
   pub version: String,
+  pub app_id: String,
   pub location_id: String,
   pub catalog_id: String,
   pub subscription_price: u64,
@@ -21,7 +22,8 @@ impl SquareClient {
       client: Client::new(),
       base_url: std::env::var("SQUARE_API_URL").unwrap_or_else(|_| "https://connect.squareupsandbox.com/v2/".to_string()),
       token: std::env::var("SQUARE_ACCESS_TOKEN").unwrap_or_else(|_| "".to_string()),
-      version: std::env::var("SQUARE_API_VERSION").unwrap_or_else(|_| "2023-09-25".to_string()),
+      version: std::env::var("SQUARE_API_VERSION").unwrap_or_else(|_| "2023-10-18".to_string()),
+      app_id: std::env::var("SQUARE_APP_ID").unwrap_or_else(|_| "".to_string()),
       location_id: std::env::var("SQUARE_LOCATION_ID").unwrap_or_else(|_| "".to_string()),
       catalog_id: std::env::var("SQUARE_CATALOG_ID").unwrap_or_else(|_| "".to_string()),
       subscription_price: std::env::var("SQUARE_SUBSCRIPTION_PRICE").unwrap_or_else(|_| "".to_string()).parse::<u64>().unwrap(),
@@ -32,7 +34,7 @@ impl SquareClient {
 
   pub async fn update_customer(&self, request: CustomerRequest) -> Result<CustomerResponse, Error> {
     // POST customer search
-    let search_customer_endpoint = self.base_url.clone() + "customers/search";
+    let search_customer_endpoint = self.base_url.clone() + "v2/customers/search";
     let query = SearchCustomerRequest::new(request.email_address.clone()).to_value()?;
     let search_res = self.client.post(search_customer_endpoint)
       .header("Square-Version", self.version.clone())
@@ -45,7 +47,7 @@ impl SquareClient {
 
     if customer_search.customers.is_empty() {
       // create new customer -> POST
-      let create_customer_endpoint = self.base_url.clone() + "customers";
+      let create_customer_endpoint = self.base_url.clone() + "v2/customers";
       let res = self.client.post(create_customer_endpoint)
         .header("Square-Version", self.version.clone())
         .bearer_auth(self.token.clone())
@@ -60,7 +62,7 @@ impl SquareClient {
     } else {
       // update existing customer to subscribe -> PUT
       let customer_id = customer_search.customers[0].id.clone();
-      let update_customer_endpoint = format!("{}customers/{}", self.base_url.clone(), customer_id);
+      let update_customer_endpoint = format!("{}v2/customers/{}", self.base_url.clone(), customer_id);
       info!("update customer endpoint: {}", update_customer_endpoint);
 
       let res = self.client.put(update_customer_endpoint)
@@ -80,7 +82,7 @@ impl SquareClient {
   /// After creating a catalog, use the result.catalog_object.subscription_plan_variation_data.subscription_plan_id`
   /// to set as the SQUARE_CATALOG_ID in the env
   pub async fn upsert_catalog(&self) -> Result<SubscriptionPlanResponse, Error> {
-    let catalog_endpoint = self.base_url.clone() + "catalog/object";
+    let catalog_endpoint = self.base_url.clone() + "v2/catalog/object";
 
     let request = CatalogBuilder {
       id: "#plan".to_string(),
@@ -115,7 +117,7 @@ impl SquareClient {
   }
 
   async fn get_catalog(&self) -> Result<CatalogResponseObject, Error> {
-    let list_catalogs_endpoint = self.base_url.clone() + "catalog/list?types=SUBSCRIPTION_PLAN";
+    let list_catalogs_endpoint = self.base_url.clone() + "v2/catalog/list?types=SUBSCRIPTION_PLAN";
 
     let catalog_list_res = self.client.get(list_catalogs_endpoint)
       .header("Square-Version", self.version.clone())
@@ -133,7 +135,7 @@ impl SquareClient {
   }
 
   async fn get_location(&self) -> Result<LocationResponse, Error> {
-    let location_endpoint = self.base_url.clone() + "locations";
+    let location_endpoint = self.base_url.clone() + "v2/locations";
 
     let res = self.client.get(location_endpoint)
       .header("Square-Version", self.version.clone())
@@ -148,7 +150,7 @@ impl SquareClient {
   }
 
   pub async fn list_subscriptions(&self) -> Result<Vec<SubscriptionResponse>, Error> {
-    let list_subs_endpoint = self.base_url.clone() + "subscriptions/search";
+    let list_subs_endpoint = self.base_url.clone() + "v2/subscriptions/search";
     let list_res = self.client.post(list_subs_endpoint)
       .header("Square-Version", self.version.clone())
       .bearer_auth(self.token.clone())
@@ -158,9 +160,9 @@ impl SquareClient {
     let list = list_res.json::<SubscriptionSearchResponse>().await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to parse POST subscription search response from Square")).unwrap();
     debug!("Square subscription list: {:?}", &list);
 
-    let mut subscriptions = Vec::<SubscriptionResponse>::new();
+    let mut subs = Vec::<SubscriptionResponse>::new();
     for sub in list.subscriptions.into_iter() {
-      let retrieve_endpoint = self.base_url.clone() + "subscriptions/" + &*sub.id + "?include=actions";
+      let retrieve_endpoint = self.base_url.clone() + "v2/subscriptions/" + &*sub.id + "?include=actions";
       info!("Sub ID: {}", &sub.id);
 
       let res = self.client.get(retrieve_endpoint)
@@ -171,14 +173,14 @@ impl SquareClient {
         .await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to GET subscription from Square")).unwrap();
       let sub = res.json::<SubscriptionResponse>().await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to parse GET retrieve subscription response from Square")).unwrap();
       debug!("Square subscription: {:?}", &sub);
-      subscriptions.push(sub);
+      subs.push(sub);
     }
 
-    Ok(subscriptions)
+    Ok(subs)
   }
 
   pub async fn subscribe(&self) -> Result<CheckoutInfo, Error> {
-    let checkout_endpoint = self.base_url.clone() + "online-checkout/payment-links";
+    let checkout_endpoint = self.base_url.clone() + "v2/online-checkout/payment-links";
     let subscription_plan_id = self.get_catalog().await?.subscription_plan_data
       .subscription_plan_variations.unwrap()
       .get(0).unwrap()
@@ -212,7 +214,7 @@ impl SquareClient {
 
   /// Provides customer name and card, but not email
   pub async fn list_customers(&self) -> Result<CustomerListResponse, Error> {
-    let endpoint = self.base_url.clone() + "customers?limit=10&sort_field=CREATED_AT&sort_order=DESC";
+    let endpoint = self.base_url.clone() + "v2/customers?limit=10&sort_field=CREATED_AT&sort_order=DESC";
     let res = self.client.get(endpoint)
       .header("Square-Version", self.version.clone())
       .bearer_auth(self.token.clone())
@@ -225,7 +227,7 @@ impl SquareClient {
   }
 
   pub async fn list_invoices(&self) -> Result<InvoiceListResponse, Error> {
-    let endpoint = self.base_url.clone() + "invoices?location_id=" + &*self.location_id;
+    let endpoint = self.base_url.clone() + "v2/invoices?location_id=" + &*self.location_id;
     let res = self.client.get(endpoint)
       .header("Square-Version", self.version.clone())
       .bearer_auth(self.token.clone())
@@ -238,14 +240,14 @@ impl SquareClient {
 
   // get customer email via invoices endpoint
   pub async fn email_list(&self) -> Result<Vec<CustomerEmailInfo>, Error> {
-    let invoices = self.list_invoices().await?;
-    let emails: Vec<CustomerEmailInfo> = invoices.invoices.into_iter().map(|invoice| CustomerEmailInfo {
+    let res = self.list_invoices().await?;
+    let emails: Vec<CustomerEmailInfo> = res.invoices.into_iter().map(|invoice| CustomerEmailInfo {
       email_address: invoice.primary_recipient.email_address,
       family_name: invoice.primary_recipient.family_name,
       given_name: invoice.primary_recipient.given_name,
     }).collect();
     // filter out duplicate email_address
-    let mut emails: Vec<CustomerEmailInfo> = emails.into_iter().fold(Vec::new(), |mut acc, email| {
+    let emails: Vec<CustomerEmailInfo> = emails.into_iter().fold(Vec::new(), |mut acc, email| {
       if !acc.iter().any(|e| e.email_address == email.email_address) {
         acc.push(email);
       }
@@ -255,5 +257,3 @@ impl SquareClient {
     Ok(emails)
   }
 }
-
-

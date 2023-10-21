@@ -1,5 +1,5 @@
 use serde::{Serialize, Deserialize};
-use crate::types::Price;
+use crate::Price;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct InvoiceListResponse {

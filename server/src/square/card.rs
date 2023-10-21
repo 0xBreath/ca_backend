@@ -1,5 +1,5 @@
 use serde::{Serialize, Deserialize};
-use crate::types::{Address, CustomerRequest};
+use crate::{Address, CustomerRequest};
 
 pub struct CardBuilder {
   pub customer: CustomerRequest,
@@ -33,9 +33,9 @@ impl CardRequest {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CardRequestObject {
   pub billing_address: Address,
-  /// Pull from [`CustomerResponse`](crate::types::CustomerResponse) first and last name
+  /// Pull from [`CustomerResponse`](crate::CustomerResponse) first and last name
   pub cardholder_name: String,
-  /// Pull from [`CustomerResponse`](crate::types::CustomerResponse) id
+  /// Pull from [`CustomerResponse`](crate::CustomerResponse) id
   pub customer_id: String,
   pub reference_id: String,
 }
