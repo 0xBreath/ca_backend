@@ -65,8 +65,7 @@ async fn main() -> std::io::Result<()> {
           .service(customers)
           .service(invoices)
           .service(email_list)
-          .service(user_info)
-          .service(user_subscription_info)
+          .service(user_profile)
     })
       .bind(bind_address)?
       .run()
@@ -185,26 +184,7 @@ async fn subscribe(mut payload: web::Payload) -> Result<HttpResponse, Error> {
 }
 
 #[post("/user")]
-async fn user_info(mut payload: web::Payload) -> Result<HttpResponse, Error> {
-    let mut body = web::BytesMut::new();
-    while let Some(chunk) = payload.next().await {
-        let chunk = chunk?;
-        if (body.len() + chunk.len()) > MAX_SIZE {
-            return Err(actix_web::error::ErrorBadRequest("Subscribe POST request bytes overflow"));
-        }
-        body.extend_from_slice(&chunk);
-    }
-
-    let buyer_email = serde_json::from_slice::<UserEmailRequest>(&body)?;
-    info!("Subscribe user email: {:?}", &buyer_email);
-    let client = SQUARE_CLIENT.lock().await;
-    let customer: Option<CustomerInfo> = client.get_customer_info(buyer_email).await?;
-    debug!("Get customer: {:?}", &customer);
-    Ok(HttpResponse::Ok().json(customer))
-}
-
-#[post("/subscription")]
-async fn user_subscription_info(mut payload: web::Payload) -> Result<HttpResponse, Error> {
+async fn user_profile(mut payload: web::Payload) -> Result<HttpResponse, Error> {
     let mut body = web::BytesMut::new();
     while let Some(chunk) = payload.next().await {
         let chunk = chunk?;

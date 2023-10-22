@@ -77,6 +77,7 @@ impl SquareClient {
     }
   }
 
+  #[allow(dead_code)]
   pub async fn update_customer(&self, request: CustomerRequest) -> Result<CustomerResponse, Error> {
     // POST customer search
     let search_customer_endpoint = self.base_url.clone() + "v2/customers/search";
@@ -317,6 +318,7 @@ impl SquareClient {
     let user_sub_info = self.get_user_subscription_info(request).await?;
     match (customer, sub_info) {
       (Some(customer), Some(sub_info)) => {
+        info!("customer card: {:?}", customer.cards);
         Ok(Some(UserProfile {
           customer,
           subscription_info: sub_info,
@@ -354,7 +356,7 @@ impl SquareClient {
 
     let checkout_info = CheckoutInfo {
       url: checkout.payment_link.url,
-      amount: checkout.related_resources.orders.get(0).unwrap().net_amount_due_money.amount,
+      amount: checkout.related_resources.orders.get(0).unwrap().net_amount_due_money.amount as f64 / 100.0,
     };
     debug!("Square subscription checkout info: {:?}", &checkout_info);
 

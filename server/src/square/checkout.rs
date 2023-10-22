@@ -153,6 +153,5 @@ pub struct NetAmounts {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CheckoutInfo {
   pub url: String,
-  /// Amount is in cents
-  pub amount: u64
+  pub amount: f64
 }
