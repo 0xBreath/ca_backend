@@ -109,7 +109,7 @@ impl SquareClient {
       // update existing customer to subscribe -> PUT
       let customer_id = customer_search.customers[0].id.clone();
       let update_customer_endpoint = format!("{}v2/customers/{}", self.base_url.clone(), customer_id);
-      info!("update customer endpoint: {}", update_customer_endpoint);
+      debug!("Update customer endpoint: {}", update_customer_endpoint);
 
       let res = self.client.put(update_customer_endpoint)
         .header("Square-Version", self.version.clone())
@@ -145,7 +145,7 @@ impl SquareClient {
       .await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to send POST catalog upsert to Square"))?;
     debug!("POST Square upsert catalog: {:?}", &catalog_res);
     let catalog = catalog_res.json::<CatalogResponse>().await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to parse catalog upsert response from Square"))?;
-    info!("Square upsert catalog: {:?}", &catalog);
+    debug!("Square upsert catalog: {:?}", &catalog);
     info!("Catalog ID: {}", &catalog.catalog_object.id);
 
     // create monthly subscription plan within catalog
@@ -267,7 +267,7 @@ impl SquareClient {
     let mut subs = Vec::<SubscriptionResponse>::new();
     for sub in list.subscriptions.into_iter() {
       let retrieve_endpoint = self.base_url.clone() + "v2/subscriptions/" + &*sub.id + "?include=actions";
-      info!("Sub ID: {}", &sub.id);
+      debug!("Subcription ID: {}", &sub.id);
 
       let res = self.client.get(retrieve_endpoint)
         .header("Square-Version", self.version.clone())
@@ -318,7 +318,7 @@ impl SquareClient {
     let user_sub_info = self.get_user_subscription_info(request).await?;
     match (customer, sub_info) {
       (Some(customer), Some(sub_info)) => {
-        info!("customer card: {:?}", customer.cards);
+        debug!("Customer card: {:?}", customer.cards);
         Ok(Some(UserProfile {
           customer,
           subscription_info: sub_info,
