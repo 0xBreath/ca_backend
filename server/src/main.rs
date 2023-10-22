@@ -3,7 +3,6 @@ mod errors;
 mod oauth;
 
 use square::*;
-use errors::*;
 use oauth::*;
 
 #[macro_use]
@@ -67,6 +66,7 @@ async fn main() -> std::io::Result<()> {
           .service(invoices)
           .service(email_list)
           .service(user_info)
+          .service(user_subscription_info)
     })
       .bind(bind_address)?
       .run()
@@ -177,7 +177,7 @@ async fn subscribe(mut payload: web::Payload) -> Result<HttpResponse, Error> {
     }
 
     let buyer_email = serde_json::from_slice::<UserEmailRequest>(&body)?;
-    info!("Subscribe user email: {:?}", &buyer_email);
+    debug!("Checkout user email: {:?}", &buyer_email);
     let client = SQUARE_CLIENT.lock().await;
     let subscribe = client.subscribe(buyer_email).await?;
     info!("Checkout: {:?}", &subscribe);
@@ -198,9 +198,28 @@ async fn user_info(mut payload: web::Payload) -> Result<HttpResponse, Error> {
     let buyer_email = serde_json::from_slice::<UserEmailRequest>(&body)?;
     info!("Subscribe user email: {:?}", &buyer_email);
     let client = SQUARE_CLIENT.lock().await;
-    let customer: Option<CustomerInfo> = client.get_customer(buyer_email).await?;
-    info!("Get customer: {:?}", &customer);
+    let customer: Option<CustomerInfo> = client.get_customer_info(buyer_email).await?;
+    debug!("Get customer: {:?}", &customer);
     Ok(HttpResponse::Ok().json(customer))
+}
+
+#[post("/subscription")]
+async fn user_subscription_info(mut payload: web::Payload) -> Result<HttpResponse, Error> {
+    let mut body = web::BytesMut::new();
+    while let Some(chunk) = payload.next().await {
+        let chunk = chunk?;
+        if (body.len() + chunk.len()) > MAX_SIZE {
+            return Err(actix_web::error::ErrorBadRequest("Subscribe POST request bytes overflow"));
+        }
+        body.extend_from_slice(&chunk);
+    }
+
+    let buyer_email = serde_json::from_slice::<UserEmailRequest>(&body)?;
+    debug!("User subscription request email: {:?}", &buyer_email);
+    let client = SQUARE_CLIENT.lock().await;
+    let info: Option<UserProfile> = client.get_user_profile(buyer_email).await?;
+    debug!("Get user subscription info: {:?}", &info);
+    Ok(HttpResponse::Ok().json(info))
 }
 
 // ================================== ADMIN API ================================== //

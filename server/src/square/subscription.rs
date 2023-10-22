@@ -1,5 +1,6 @@
 use serde::{Serialize, Deserialize};
 use crate::{Source, Price};
+use crate::square::CustomerInfo;
 
 // ==================== Subscription Request ====================
 
@@ -37,7 +38,7 @@ pub struct SubscriptionResponse {
   pub subscription: SubscriptionResponseObject
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SubscriptionResponseObject {
   pub actions: Option<Vec<Action>>,
   pub buyer_self_management_token: String,
@@ -61,7 +62,7 @@ pub struct SubscriptionResponseObject {
   pub price_override_money: Option<Price>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Action {
   pub id: String,
   #[serde(rename = "type")]
@@ -70,7 +71,7 @@ pub struct Action {
   pub new_plan_id: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlanPhaseResponse {
   pub uid: String,
   pub ordinal: u64,
@@ -80,9 +81,60 @@ pub struct PlanPhaseResponse {
 
 // ==================== Subscription Search Response ====================
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SubscriptionSearchResponse {
   pub subscriptions: Vec<SubscriptionResponseObject>
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SearchSubscriptionsRequest {
+  pub query: SearchSubscriptionQuery
+}
+
+impl SearchSubscriptionsRequest {
+  pub fn new(customer_id: String) -> Self {
+    Self {
+      query: SearchSubscriptionQuery {
+        filter: SearchSubscriptionFilter {
+          customer_ids: vec![customer_id]
+        }
+      }
+    }
+  }
+
+  pub fn to_value(&self) -> serde_json::Result<serde_json::Value> {
+    serde_json::to_value(self)
+  }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SearchSubscriptionQuery {
+  pub filter: SearchSubscriptionFilter
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SearchSubscriptionFilter {
+  pub customer_ids: Vec<String>
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SubscriptionInfo {
+  pub title: String,
+  pub cost: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserSubscriptionInfo {
+  pub start_date: String,
+  pub charged_through_date: Option<String>,
+  pub canceled_date: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserProfile {
+  pub customer: CustomerInfo,
+  pub subscription_info: SubscriptionInfo,
+  pub user_subscription: Option<UserSubscriptionInfo>
 }
 
 

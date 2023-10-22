@@ -32,7 +32,7 @@ impl SquareClient {
     }
   }
 
-  pub async fn get_customer(&self, request: UserEmailRequest) -> Result<Option<CustomerInfo>, Error> {
+  pub async fn get_customer(&self, request: UserEmailRequest) -> Result<Option<CustomerResponse>, Error> {
     if request.email.is_none() {
       return Ok(None);
     }
@@ -51,19 +51,29 @@ impl SquareClient {
       Ok(None)
     } else {
       let customer = customer_search.customers[0].clone();
-      let info = CustomerInfo {
-        email_address: customer.email_address,
-        family_name: customer.family_name,
-        given_name: customer.given_name,
-        cards: customer.cards.map(|cards| cards.into_iter().map(|card| CardInfo {
-          card_brand: card.card_brand,
-          last_4: card.last_4,
-          exp_month: card.exp_month,
-          exp_year: card.exp_year,
-          cardholder_name: card.cardholder_name,
-        }).collect())
-      };
-      Ok(Some(info))
+      Ok(Some(customer))
+    }
+  }
+
+  pub async fn get_customer_info(&self, request: UserEmailRequest) -> Result<Option<CustomerInfo>, Error> {
+    let customer = self.get_customer(request).await?;
+    match customer {
+      None => Ok(None),
+      Some(customer) => {
+        let info = CustomerInfo {
+          email_address: customer.email_address,
+          family_name: customer.family_name,
+          given_name: customer.given_name,
+          cards: customer.cards.map(|cards| cards.into_iter().map(|card| CardInfo {
+            card_brand: card.card_brand,
+            last_4: card.last_4,
+            exp_month: card.exp_month,
+            exp_year: card.exp_year,
+            cardholder_name: card.cardholder_name,
+          }).collect())
+        };
+        Ok(Some(info))
+      }
     }
   }
 
@@ -184,6 +194,64 @@ impl SquareClient {
     Ok(location)
   }
 
+  async fn get_subscription_info(&self) -> Result<Option<SubscriptionInfo>, Error> {
+    let catalog = self.get_catalog().await?;
+    let cost = match catalog.subscription_plan_data.subscription_plan_variations {
+      None => None,
+      Some(variations) => {
+        match variations.get(0) {
+          None => None,
+          Some(variation) => {
+            match variation.subscription_plan_variation_data.phases.get(0) {
+              None => None,
+              Some(phase) => {
+                match &phase.pricing.price_money {
+                  None => {
+                    match &phase.pricing.price {
+                      None => None,
+                      Some(price) => {
+                        let price = price.amount as f64 / 100.0;
+                        Option::from(price)
+                      }
+                    }
+                  },
+                  Some(price) => {
+                    let price = price.amount as f64 / 100.0;
+                    Option::from(price)
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    };
+    match cost {
+      Some(cost) => {
+        let title = catalog.subscription_plan_data.name;
+        Ok(Some(SubscriptionInfo {
+          title,
+          cost,
+        }))
+      }
+      None => Ok(None),
+    }
+  }
+
+  async fn get_user_subscription_info(&self, request: UserEmailRequest) -> Result<Option<UserSubscriptionInfo>, Error> {
+    let subscription = self.get_subscription(request).await?;
+    match subscription {
+      Some(sub) => {
+        Ok(Some(UserSubscriptionInfo {
+          start_date: sub.start_date,
+          charged_through_date: sub.charged_through_date,
+          canceled_date: sub.canceled_date,
+        }))
+      }
+      None => Ok(None),
+    }
+  }
+
   pub async fn list_subscriptions(&self) -> Result<Vec<SubscriptionResponse>, Error> {
     let list_subs_endpoint = self.base_url.clone() + "v2/subscriptions/search";
     let list_res = self.client.post(list_subs_endpoint)
@@ -212,6 +280,51 @@ impl SquareClient {
     }
 
     Ok(subs)
+  }
+
+  pub async fn get_subscription(&self, request: UserEmailRequest) -> Result<Option<SubscriptionResponseObject>, Error> {
+    // get customer from email
+    let customer: Option<CustomerResponse> = self.get_customer(request).await?;
+    match customer {
+      None => Ok(None),
+      Some(customer) => {
+        let customer_id = customer.id;
+        // search subscription by customer_id
+        let list_subs_endpoint = self.base_url.clone() + "v2/subscriptions/search";
+        let list_res = self.client.post(list_subs_endpoint)
+          .header("Square-Version", self.version.clone())
+          .bearer_auth(self.token.clone())
+          .header("Content-Type", "application/json")
+          .json(&SearchSubscriptionsRequest::new(customer_id).to_value()?)
+          .send()
+          .await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to send POST subscription search to Square")).unwrap();
+        let list = list_res.json::<SubscriptionSearchResponse>().await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to parse POST subscription search response from Square")).unwrap();
+
+        if list.subscriptions.is_empty() {
+          Ok(None)
+        } else {
+          let sub: SubscriptionResponseObject = list.subscriptions[0].clone();
+          debug!("Square subscription: {:?}", &sub);
+          Ok(Some(sub))
+        }
+      }
+    }
+  }
+
+  pub async fn get_user_profile(&self, request: UserEmailRequest) -> Result<Option<UserProfile>, Error> {
+    let customer = self.get_customer_info(request.clone()).await?;
+    let sub_info = self.get_subscription_info().await?;
+    let user_sub_info = self.get_user_subscription_info(request).await?;
+    match (customer, sub_info) {
+      (Some(customer), Some(sub_info)) => {
+        Ok(Some(UserProfile {
+          customer,
+          subscription_info: sub_info,
+          user_subscription: user_sub_info
+        }))
+      }
+      _ => Ok(None),
+    }
   }
 
   pub async fn subscribe(&self, user_email: UserEmailRequest) -> Result<CheckoutInfo, Error> {
