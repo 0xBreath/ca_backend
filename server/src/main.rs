@@ -24,8 +24,14 @@ use actix_web_httpauth::middleware::HttpAuthentication;
 use lazy_static::lazy_static;
 use tokio::sync::Mutex;
 use futures::StreamExt;
+use google_cloud_storage::http::{
+    buckets::get::GetBucketRequest,
+    objects::list::ListObjectsRequest
+};
+use google_cloud_storage::client::{ClientConfig, Client};
 
 const MAX_SIZE: usize = 262_144; // max payload size is 256k
+const GCLOUD_BUCKET: &str = "consciousness-archive";
 
 lazy_static! {
     static ref SQUARE_CLIENT: Mutex<SquareClient> = Mutex::new(SquareClient::new());
@@ -66,6 +72,7 @@ async fn main() -> std::io::Result<()> {
           .service(invoices)
           .service(email_list)
           .service(user_profile)
+          .service(testimonial_images)
     })
       .bind(bind_address)?
       .run()
@@ -163,6 +170,35 @@ async fn testimonials() -> Result<HttpResponse, Error> {
 
     Ok(HttpResponse::Ok().json(testimonials))
 }
+
+#[get("/testimonial_images")]
+async fn testimonial_images() -> Result<HttpResponse, Error> {
+    let config = ClientConfig::default()
+      .with_auth()
+      .await
+      .expect("Failed to get cloud storage client");
+
+    let client = Client::new(config);
+
+    let objects = client.list_objects(&ListObjectsRequest {
+        bucket: GCLOUD_BUCKET.to_string(),
+        ..Default::default()
+    }).await.expect("Failed to list Google bucket objects");
+
+    let mut images = Vec::<String>::new();
+    if let Some(objects) = objects.items {
+        let testimonial_images = objects.into_iter().filter(|object| {
+            object.name.contains("testimonials")
+        }).map(|object| {
+            object.media_link
+        }).collect::<Vec<String>>();
+        images = testimonial_images;
+    }
+
+    Ok(HttpResponse::Ok().json(images))
+}
+
+// ================================== SQUARE API ================================== //
 
 #[post("/subscribe")]
 async fn subscribe(mut payload: web::Payload) -> Result<HttpResponse, Error> {

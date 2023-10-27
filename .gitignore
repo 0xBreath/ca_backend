@@ -3,3 +3,4 @@
 .DS_Store
 *.log
 .env
+gcloud_credentials.json
