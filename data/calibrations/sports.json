@@ -3,70 +3,70 @@
     "title": "Baseball",
     "calibration": 330,
     "tags": ["All", "Sports"],
-    "image_url": "https://storage.googleapis.com/consciousness-archive/images/calibrations/sports/baseball.png",
+    "image_url": "images/calibrations/sports/baseball.png",
     "description": "Baseball is a bat-and-ball sport played on a diamond-shaped field with bases positioned at its corners. Two teams, typically consisting of nine players each, take turns batting and fielding. The batting team's objective is to score runs by hitting a pitched ball and safely running around all four bases. The fielding team tries to prevent runs by catching the ball, tagging runners out, or throwing them out at a base. Baseball is renowned for its strategic depth, individual and team skills, and the rich history of legendary players and iconic moments, making it a beloved sport in the United States and around the world."
   },
   {
     "title": "Golf",
     "calibration": 400,
     "tags": ["All", "Sports"],
-    "image_url": "https://storage.googleapis.com/consciousness-archive/images/calibrations/sports/golf.png",
+    "image_url": "images/calibrations/sports/golf.png",
     "description": "Golf is a leisurely sport played on expansive outdoor courses, often set against scenic backdrops. Players use clubs to hit a small ball into a series of holes positioned across the course in as few strokes as possible. Each hole has a designated par score, and players aim to match or beat it. Golf emphasizes precision, control, and technique, requiring players to navigate hazards like bunkers, water hazards, and rough terrain. The sport is known for its etiquette, sportsmanship, and the opportunity for both competitive and recreational play, making it a popular pastime enjoyed by people of all skill levels."
   },
   {
     "title": "American Football",
     "calibration": 330,
     "tags": ["All", "Sports"],
-    "image_url": "https://storage.googleapis.com/consciousness-archive/images/calibrations/sports/football.png",
+    "image_url": "images/calibrations/sports/football.png",
     "description": "American football is a popular team sport in the United States characterized by physical contact and strategic gameplay. Two teams, each with 11 players on the field, compete to advance an oval-shaped ball down the field and score points by crossing the opponent's goal line or kicking it through the goalposts. The game is divided into four quarters and involves various positions, including offensive and defensive players, each with specific roles and responsibilities. American football is known for its complex plays, with teams strategizing to gain yards, make first downs, and ultimately reach the end zone. The sport has a rich cultural and competitive history, culminating in the annual Super Bowl, one of the most-watched sporting events worldwide."
   },
   {
     "title": "Soccer (Football)",
     "calibration": 450,
     "tags": ["All", "Sports"],
-    "image_url": "https://storage.googleapis.com/consciousness-archive/images/calibrations/sports/soccer.png",
+    "image_url": "images/calibrations/sports/soccer.png",
     "description": "Soccer, also known as football in most parts of the world, is a globally beloved sport played between two teams of 11 players each. The objective is to score goals by propelling a spherical ball into the opponent's net using any part of the body except the arms and hands. Soccer matches consist of two halves, typically lasting 45 minutes each, with a halftime break. The sport places a strong emphasis on teamwork, skill, and strategy, with players working together to control the ball, pass it to teammates, and defend against the opposing team's attacks. Soccer enjoys immense popularity worldwide, with major tournaments like the FIFA World Cup attracting massive global audiences and fervent fans."
   },
   {
     "title": "Running",
     "calibration": 350,
     "tags": ["All", "Sports"],
-    "image_url": "https://storage.googleapis.com/consciousness-archive/images/calibrations/sports/running.png",
+    "image_url": "images/calibrations/sports/running.png",
     "description": "Running is a popular sport and form of physical exercise that involves moving rapidly on foot over varying distances. Competitive running events range from short sprints, middle-distance races, to long-distance marathons and ultramarathons. Athletes train rigorously to improve their speed, endurance, and technique, often following structured training plans to achieve their goals. Track and field events, road races, and cross-country running competitions showcase the diversity of this sport, with athletes striving to achieve personal records and compete at local, national, and international levels. Running is not only a competitive sport but also a recreational activity that promotes physical fitness, mental well-being, and a sense of accomplishment."
   },
   {
     "title": "Tennis",
     "calibration": 350,
     "tags": ["All", "Sports"],
-    "image_url": "https://storage.googleapis.com/consciousness-archive/images/calibrations/sports/tennis.png",
+    "image_url": "images/calibrations/sports/tennis.png",
     "description": "Tennis is a widely popular racket sport played both recreationally and professionally. It involves two or four players (singles or doubles) who take turns hitting a ball over a net and into the opponent's court, aiming to score points by making the ball land within the boundaries. The game requires agility, precision, and strategic thinking as players engage in rallies, trying to outmaneuver and outscore their opponents. Tennis is played on various surfaces, including grass, clay, and hard courts, each of which influences the game's pace and style. It has a rich history and is known for iconic players like Serena Williams and Roger Federer, with major tournaments like Wimbledon and the US Open drawing large global audiences."
   },
   {
     "title": "Exercise Gym",
     "calibration": 320,
     "tags": ["All", "Sports"],
-    "image_url": "https://storage.googleapis.com/consciousness-archive/images/calibrations/sports/gym.png",
+    "image_url": "images/calibrations/sports/gym.png",
     "description": "An exercise gym, commonly referred to as a fitness gym or simply a gym, is a dedicated facility equipped with a wide range of exercise equipment and resources for individuals to engage in physical fitness activities. Gyms typically offer a variety of machines and free weights to target different muscle groups, catering to diverse fitness goals such as strength training, cardiovascular fitness, and flexibility. Many gyms also provide fitness classes, personal trainers, and group workouts to help members achieve their fitness objectives. These facilities create a supportive and motivating environment for individuals to work on their health and well-being, with access to amenities like showers, locker rooms, and sometimes even nutritional guidance. Gyms play a crucial role in promoting regular exercise, improving overall fitness, and enhancing the overall quality of life for those who use them."
   },
   {
     "title": "Poaching Elephant Ivory",
     "calibration": 130,
     "tags": ["All", "Sports"],
-    "image_url": "https://storage.googleapis.com/consciousness-archive/images/calibrations/sports/elephant.png",
+    "image_url": "images/calibrations/sports/elephant.png",
     "description": "Poaching elephant ivory is a criminal act that threatens the survival of these magnificent animals and is prohibited by international laws and agreements. The illegal trade in ivory has devastating consequences, leading to the decline of elephant populations and contributing to ecological imbalances."
   },
   {
     "title": "Basketball",
     "calibration": 345,
     "tags": ["All", "Sports"],
-    "image_url": "https://storage.googleapis.com/consciousness-archive/images/calibrations/sports/basketball.png",
+    "image_url": "images/calibrations/sports/basketball.png",
     "description": "Basketball is a popular team sport played between two teams, typically consisting of five players each. The objective is to score points by shooting a ball through the opponent's hoop while defending one's own basket. The game is characterized by fast-paced dribbling, passing, and precise shooting, requiring a combination of physical skill, agility, and teamwork. Basketball is played on an indoor or outdoor court with a distinct three-point line, and it is governed by a set of rules and regulations. It is a global sport with professional leagues, such as the NBA in the United States, attracting a massive fan base and showcasing some of the world's most talented athletes."
   },
   {
     "title": "Boxing",
     "calibration": 180,
     "tags": ["All", "Sports"],
-    "image_url": "https://storage.googleapis.com/consciousness-archive/images/calibrations/sports/boxing.png",
+    "image_url": "images/calibrations/sports/boxing.png",
     "description": "Boxing is a combat sport where two opponents face each other in a ring and engage in a series of timed rounds, aiming to land punches on each other while avoiding being hit. The primary objective is to knock out the opponent or score more points through clean, effective punches, and defensive maneuvers. Boxers wear protective gear like gloves and mouthguards to minimize injuries, although the sport is known for its physical demands and toughness. Boxing has various weight divisions, and fighters often compete for titles and championships in their respective weight classes. It has a long history, with legends like Muhammad Ali and Mike Tyson, and remains a popular and respected sport with a dedicated global following."
   }
 ]

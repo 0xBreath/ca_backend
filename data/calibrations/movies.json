@@ -3,42 +3,42 @@
     "title": "2001: A Space Odyssey",
     "calibration": 440,
     "tags": ["All", "Movies"],
-    "image_url": "https://storage.googleapis.com/consciousness-archive/images/calibrations/movies/2001_A_Space_Odyssey.png",
+    "image_url": "images/calibrations/movies/2001_A_Space_Odyssey.png",
     "description": "An imposing black structure provides a connection between the past and the future in this enigmatic adaptation of a short story by revered sci-fi author Arthur C. Clarke. When Dr. Dave Bowman (Keir Dullea) and other astronauts are sent on a mysterious mission, their ship's computer system, HAL, begins to display increasingly strange behavior, leading up to a tense showdown between man and machine that results in a mind-bending trek through space and time."
   },
   {
     "title": "The Big Blue",
     "calibration": 700,
     "tags": ["All", "Movies"],
-    "image_url": "https://storage.googleapis.com/consciousness-archive/images/calibrations/movies/The_Big_Blue.png",
+    "image_url": "images/calibrations/movies/The_Big_Blue.png",
     "description": "The Big Blue (released in some countries under the French title Le Grand Bleu) is a 1988 drama film in the French Cinéma du look visual style, made by French director Luc Besson. It is a heavily fictionalized and dramatized story of the friendship and sporting rivalry between two leading contemporary champion free divers in the 20th century: Jacques Mayol (played by Jean-Marc Barr) and Enzo Maiorca (renamed \"Enzo Molinari\" and played by Jean Reno), and Mayol's fictionalized relationship with his girlfriend Johana Baker (played by Rosanna Arquette). The film became one of France's most commercially successful films (although an adaptation for US release was a commercial failure in that country). French President Jacques Chirac referred to the film in describing Mayol, after his death in 2001, as an enduring symbol for the \"Big Blue\" generation. The story was heavily adapted for cinema. In real life, Mayol lived from 1927 to 2001 and Maiorca retired from diving to politics in the 1980s. Both set no-limits-category deep diving records below 100 metres, and Mayol was indeed involved in scientific research into human aquatic potential, but neither reached 400 feet (120 metres) as portrayed in the film, and they were not direct competitors. Mayol himself was a screenwriter for the film, and Mayol's search for love, family, \"wholeness\" and the meaning of life and death, and the conflict and tension between his yearning for the deep and his relationship with his girlfriend are also major elements of the latter part of the film."
   },
   {
     "title": "Casablanca",
     "calibration": 385,
     "tags": ["All", "Movies"],
-    "image_url": "https://storage.googleapis.com/consciousness-archive/images/calibrations/movies/Casablanca.png",
+    "image_url": "images/calibrations/movies/Casablanca.png",
     "description": "Casablanca is a 1942 American romantic drama film directed by Michael Curtiz, and starring Humphrey Bogart, Ingrid Bergman, and Paul Henreid. Filmed and set during World War II, it focuses on an American expatriate (Bogart) who must choose between his love for a woman (Bergman) and helping her husband (Henreid), a Czechoslovak resistance leader, escape from the Vichy-controlled city of Casablanca to continue his fight against the Germans. The screenplay is based on Everybody Comes to Rick's, an unproduced stage play by Murray Burnett and Joan Alison. The supporting cast features Claude Rains, Conrad Veidt, Sydney Greenstreet, Peter Lorre, and Dooley Wilson."
   },
   {
     "title": "Silence of the Lambs",
     "calibration": 45,
     "tags": ["All", "Movies"],
-    "image_url": "https://storage.googleapis.com/consciousness-archive/images/calibrations/movies/Silence_of_the_Lambs.png",
+    "image_url": "images/calibrations/movies/Silence_of_the_Lambs.png",
     "description": "The Silence of the Lambs is a 1991 American psychological horror thriller film directed by Jonathan Demme and written by Ted Tally, adapted from Thomas Harris's 1988 novel of the same name. It stars Jodie Foster as Clarice Starling, a young FBI trainee who is hunting a serial killer named \"Buffalo Bill\" (Ted Levine), who skins his female victims. To catch him, she seeks the advice of the imprisoned Dr. Hannibal Lecter (Anthony Hopkins), a brilliant psychiatrist and cannibalistic serial killer. The film also features performances from Scott Glenn, Anthony Heald, and Kasi Lemmons."
   },
   {
     "title": "Pulp Fiction",
     "calibration": 25,
     "tags": ["All", "Movies"],
-    "image_url": "https://storage.googleapis.com/consciousness-archive/images/calibrations/movies/Pulp_Fiction.png",
+    "image_url": "images/calibrations/movies/Pulp_Fiction.png",
     "description": "Pulp Fiction is a 1994 American crime film written and directed by Quentin Tarantino from a story he conceived with Roger Avary. It tells four intertwining tales of crime and violence in Los Angeles, California. The film stars John Travolta, Samuel L. Jackson, Bruce Willis, Tim Roth, Ving Rhames, and Uma Thurman. The title refers to the pulp magazines and hardboiled crime novels popular during the mid-20th century, known for their graphic violence and punchy dialogue."
   },
   {
     "title": "The Matrix",
     "calibration": 165,
     "tags": ["All", "Movies"],
-    "image_url": "https://storage.googleapis.com/consciousness-archive/images/calibrations/movies/The_Matrix.png",
+    "image_url": "images/calibrations/movies/The_Matrix.png",
     "description": "The Matrix is a 1999 science fiction action film written and directed by the Wachowskis It is the first installment in the Matrix film series, starring Keanu Reeves, Laurence Fishburne, Carrie-Anne Moss, Hugo Weaving, and Joe Pantoliano, and depicts a dystopian future in which humanity is unknowingly trapped inside the Matrix, a simulated reality that intelligent machines have created to distract humans while using their bodies as an energy source. When computer programmer Thomas Anderson, under the hacker alias \"Neo\", uncovers the truth, he joins a rebellion against the machines along with other people who have been freed from the Matrix."
   }
 ]
