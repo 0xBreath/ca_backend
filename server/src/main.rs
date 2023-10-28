@@ -184,16 +184,23 @@ async fn testimonial_images() -> Result<HttpResponse, Error> {
 
     let objects = client.list_objects(&ListObjectsRequest {
         bucket: GCLOUD_BUCKET.to_string(),
+        prefix: Some("images/testimonials".to_string()),
         ..Default::default()
     }).await.expect("Failed to list Google bucket objects");
 
     let mut images = Vec::<String>::new();
     if let Some(objects) = objects.items {
-        let testimonial_images = objects.into_iter().filter(|object| {
-            object.name.contains("testimonials")
-        }).map(|object| {
+        // let testimonial_images = objects.into_iter().filter(|object| {
+        //     object.name.contains("testimonials")
+        // }).map(|object| {
+        //     // object.media_link
+        //     format!("{}{}", GCLOUD_IMAGE_PREFIX, object.name)
+        // }).collect::<Vec<String>>();
+        let testimonial_images = objects.into_iter().map(|object| {
+            // object.media_link
             format!("{}{}", GCLOUD_IMAGE_PREFIX, object.name)
         }).collect::<Vec<String>>();
+
         images = testimonial_images;
     }
 
