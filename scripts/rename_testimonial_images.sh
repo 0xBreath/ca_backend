@@ -2,4 +2,4 @@
 
 cargo run -r -p admin -- \
   -t testimonial_images \
-  -f "$HOME"/LIFE/C-Archive/testimonials
+  -f "$HOME"/LIFE/C-Archive/images/testimonials

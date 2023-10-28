@@ -240,6 +240,10 @@ async fn main() -> Result<(), Error> {
                 let suffix = file_name.to_str().expect("Failed to unwrap OsString").split('.').last().unwrap();
                 let rename = format!("{}/{}.{}", path.clone(), index, suffix);
 
+                if suffix == "DS_Store" {
+                    continue;
+                }
+
                 match std::fs::rename(full_path.clone(), rename.clone()) {
                     Err(e) => {
                         error!("Failed to rename testimonial image file: {:?}", e);

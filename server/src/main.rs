@@ -26,12 +26,14 @@ use tokio::sync::Mutex;
 use futures::StreamExt;
 use google_cloud_storage::http::{
     buckets::get::GetBucketRequest,
-    objects::list::ListObjectsRequest
+    objects::list::ListObjectsRequest,
+    objects::get::GetObjectRequest
 };
 use google_cloud_storage::client::{ClientConfig, Client};
 
 const MAX_SIZE: usize = 262_144; // max payload size is 256k
 const GCLOUD_BUCKET: &str = "consciousness-archive";
+const GCLOUD_IMAGE_PREFIX: &str = "https://storage.googleapis.com/consciousness-archive/";
 
 lazy_static! {
     static ref SQUARE_CLIENT: Mutex<SquareClient> = Mutex::new(SquareClient::new());
@@ -190,7 +192,7 @@ async fn testimonial_images() -> Result<HttpResponse, Error> {
         let testimonial_images = objects.into_iter().filter(|object| {
             object.name.contains("testimonials")
         }).map(|object| {
-            object.media_link
+            format!("{}{}", GCLOUD_IMAGE_PREFIX, object.name)
         }).collect::<Vec<String>>();
         images = testimonial_images;
     }
