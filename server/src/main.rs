@@ -319,14 +319,14 @@ async fn testimonials() -> Result<HttpResponse, Error> {
     let mut testimonials = Vec::new();
     // for each DbCalibration in the hashmap, deserialize into Calibration and collect to vector
     for (_, db_testimonial) in db_testimonials.drain() {
-        let testimonial = bincode::deserialize::<Testimonial>(&db_testimonial).expect("Failed to deserialize testimonial");
+        let mut testimonial = bincode::deserialize::<Testimonial>(&db_testimonial).expect("Failed to deserialize testimonial");
 
         let prefix = match deployment {
             Deployment::Prod => GCLOUD_STORAGE_PREFIX,
             Deployment::Dev => LOCAL_IMAGE_PREFIX
         };
         let full_path = format!("{}{}", prefix, testimonial.image_url);
-        debug!("testimonial path: {}", full_path);
+        testimonial.image_url = full_path;
 
         testimonials.push(testimonial);
     }
