@@ -82,6 +82,7 @@ git push origin tag-name
 https://consciousness-archive-483dcd2b5c76.herokuapp.com
 ```
 
+
 ### Google Cloud Storage Authentication
 Follow this guide if not setup
 [Instructions](https://cloud.google.com/sdk/docs/install)
@@ -95,7 +96,7 @@ Click on `Actions` (three dots).
 Click `Manage Keys`.
 Add a new key and download the JSON file.
 Copy contents of that JSON into `gcloud_credentials.json`
-Make sure `GOOGLE_APPLICATION_CREDENTIALS=gcloud_credentials.json` is in the `.env` file.
+Make sure `GOOGLE_APPLICATION_CREDENTIALS=./gcloud_credentials.json` is in the `.env` file.
 
 
 

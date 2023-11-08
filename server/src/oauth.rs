@@ -46,7 +46,7 @@ struct Claims {
 }
 
 pub async fn validate_token(token: &str) -> Result<bool, ServiceError> {
-  let authority = std::env::var("AUTHORITY").expect("AUTHORITY must be set");
+  let authority = std::env::var("AUTH0_ENDPOINT").expect("AUTH0_ENDPOINT must be set");
   let jwks = fetch_jwks(&format!("{}{}", authority.as_str(), ".well-known/jwks.json")).await
     .expect("failed to fetch jwks");
   let validations = vec![Validation::Issuer(authority), Validation::SubjectPresent];

@@ -110,6 +110,7 @@ async fn main() -> std::io::Result<()> {
                   .service(user_profile)
                   .service(testimonial_images)
                   .service(learn_images)
+                  .service(catalogs)
             })
               .bind(bind_address)?
               .run()
@@ -140,6 +141,7 @@ async fn main() -> std::io::Result<()> {
                   .service(user_profile)
                   .service(testimonial_images)
                   .service(learn_images)
+                  .service(catalogs)
             })
               .bind(bind_address)?
               .run()
@@ -517,5 +519,13 @@ async fn customers() -> Result<HttpResponse, Error> {
 async fn invoices() -> Result<HttpResponse, Error> {
     let client = SQUARE_CLIENT.lock().await;
     let list = client.list_invoices().await?;
+    Ok(HttpResponse::Ok().json(list))
+}
+
+// todo: scope = admin
+#[get("/catalogs")]
+async fn catalogs() -> Result<HttpResponse, Error> {
+    let client = SQUARE_CLIENT.lock().await;
+    let list = client.list_catalogs().await?;
     Ok(HttpResponse::Ok().json(list))
 }

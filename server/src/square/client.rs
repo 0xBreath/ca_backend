@@ -125,7 +125,10 @@ impl SquareClient {
     }
   }
 
-  /// After creating a catalog, use the result.catalog_object.subscription_plan_variation_data.subscription_plan_id`
+  /// After creating a catalog, use `result.catalog_object.id`
+  ///
+  /// or use `result.catalog_object.subscription_plan_variation_data.subscription_plan_id`
+  ///
   /// to set as the SQUARE_CATALOG_ID in the env
   pub async fn upsert_catalog(&self) -> Result<SubscriptionPlanResponse, Error> {
     let catalog_endpoint = self.base_url.clone() + "v2/catalog/object";
@@ -162,6 +165,20 @@ impl SquareClient {
     Ok(subscription_plan)
   }
 
+  pub async fn list_catalogs(&self) -> Result<CatalogListResponse, Error> {
+    let list_catalogs_endpoint = self.base_url.clone() + "v2/catalog/list?types=SUBSCRIPTION_PLAN";
+
+    let catalog_list_res = self.client.get(list_catalogs_endpoint)
+      .header("Square-Version", self.version.clone())
+      .bearer_auth(self.token.clone())
+      .send()
+      .await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to GET catalog list from Square")).unwrap();
+    let catalog_list = catalog_list_res.json::<CatalogListResponse>().await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to parse catalog subscription plan response from Square"))?;
+    info!("Square catalog list: {:?}", &catalog_list);
+
+    Ok(catalog_list)
+  }
+
   async fn get_catalog(&self) -> Result<CatalogResponseObject, Error> {
     let list_catalogs_endpoint = self.base_url.clone() + "v2/catalog/list?types=SUBSCRIPTION_PLAN";
 
@@ -173,7 +190,7 @@ impl SquareClient {
     let catalog_list = catalog_list_res.json::<CatalogListResponse>().await.map_err(|_| actix_web::error::ErrorBadRequest("Failed to parse catalog subscription plan response from Square"))?;
     debug!("Square catalog list: {:?}", &catalog_list);
 
-    // this is SUBSCRIPTION_PLAN catalog.catalog_object.subscription_plan_variation_data.subscription_plan_id
+    // catalog.id == catalog.catalog_object.subscription_plan_variation_data.subscription_plan_id
     // which should match SQUARE_CATALOG_ID in env
     let catalog = catalog_list.objects.into_iter().find(|plan| plan.id == self.catalog_id).unwrap();
     debug!("Square catalog: {:?}", &catalog);
