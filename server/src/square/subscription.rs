@@ -132,8 +132,8 @@ pub struct UserSubscriptionInfo {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserProfile {
-  pub customer: CustomerInfo,
-  pub subscription_info: SubscriptionInfo,
+  pub customer: Option<CustomerInfo>,
+  pub subscription_info: Option<SubscriptionInfo>,
   pub user_subscription: Option<UserSubscriptionInfo>
 }
 

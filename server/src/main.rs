@@ -121,6 +121,8 @@ async fn main() -> std::io::Result<()> {
                     .service(catalogs)
                     .service(upsert_coaching_catalog)
                     .service(coaching)
+                    .service(create_attribute)
+                    .service(user_sessions)
             })
             .bind(bind_address)?
             .run()
@@ -158,6 +160,8 @@ async fn main() -> std::io::Result<()> {
                     .service(catalogs)
                     .service(upsert_coaching_catalog)
                     .service(coaching)
+                    .service(create_attribute)
+                    .service(user_sessions)
             })
             .bind(bind_address)?
             .run()
@@ -499,7 +503,7 @@ async fn coaching(mut payload: web::Payload) -> Result<HttpResponse, Error> {
                 let chunk = chunk?;
                 if (body.len() + chunk.len()) > MAX_SIZE {
                     return Err(actix_web::error::ErrorBadRequest(
-                        "Subscribe POST request bytes overflow",
+                        "Coaching POST request bytes overflow",
                     ));
                 }
                 body.extend_from_slice(&chunk);
@@ -521,13 +525,12 @@ async fn coaching(mut payload: web::Payload) -> Result<HttpResponse, Error> {
         Deployment::Dev => {
             let url = "http://localhost:3000".to_string();
             let checkout_info = CheckoutInfo { url, amount: 1.0 };
-
             Ok(HttpResponse::Ok().json(checkout_info))
         }
     }
 }
 
-#[post("/user")]
+#[post("/user_profile")]
 async fn user_profile(mut payload: web::Payload) -> Result<HttpResponse, Error> {
     let deployment = Deployment::from_str(
         &std::env::var("DEPLOYMENT").expect("Failed to read deployment mode from env"),
@@ -550,7 +553,7 @@ async fn user_profile(mut payload: web::Payload) -> Result<HttpResponse, Error> 
             let buyer_email = serde_json::from_slice::<UserEmailRequest>(&body)?;
             debug!("User subscription request email: {:?}", &buyer_email);
             let client = SQUARE_CLIENT.lock().await;
-            let info: Option<UserProfile> = client.get_user_profile(buyer_email).await?;
+            let info: UserProfile = client.get_user_profile(buyer_email).await?;
             debug!("Get user subscription info: {:?}", &info);
             Ok(HttpResponse::Ok().json(info))
         }
@@ -567,12 +570,88 @@ async fn user_profile(mut payload: web::Payload) -> Result<HttpResponse, Error> 
             };
             let user_subscription = None;
             let user_profile = UserProfile {
-                customer,
-                subscription_info,
+                customer: Some(customer),
+                subscription_info: Some(subscription_info),
                 user_subscription,
             };
 
             Ok(HttpResponse::Ok().json(user_profile))
+        }
+    }
+}
+
+// #[post("/user_sessions")]
+// async fn user_sessions(mut payload: web::Payload) -> Result<HttpResponse, Error> {
+//     let deployment = Deployment::from_str(
+//         &std::env::var("DEPLOYMENT").expect("Failed to read deployment mode from env"),
+//     )
+//     .expect("Failed to parse Environment from str");
+//
+//     match deployment {
+//         Deployment::Prod => {
+//             let mut body = web::BytesMut::new();
+//             while let Some(chunk) = payload.next().await {
+//                 let chunk = chunk?;
+//                 if (body.len() + chunk.len()) > MAX_SIZE {
+//                     return Err(actix_web::error::ErrorBadRequest(
+//                         "Subscribe POST request bytes overflow",
+//                     ));
+//                 }
+//                 body.extend_from_slice(&chunk);
+//             }
+//
+//             let buyer_email = serde_json::from_slice::<UserEmailRequest>(&body)?;
+//             let client = SQUARE_CLIENT.lock().await;
+//             let info: UserSessions = client.get_user_sessions(buyer_email).await?;
+//             debug!("Get user sessions info: {:?}", &info);
+//             Ok(HttpResponse::Ok().json(info))
+//         }
+//         Deployment::Dev => {
+//             let info = UserSessions {
+//                 email: Some("email@example.com".to_string()),
+//                 sessions: Some(0),
+//             };
+//
+//             Ok(HttpResponse::Ok().json(info))
+//         }
+//     }
+// }
+
+#[post("/user_sessions")]
+async fn user_sessions(mut payload: web::Payload) -> Result<HttpResponse, Error> {
+    let deployment = Deployment::from_str(
+        &std::env::var("DEPLOYMENT").expect("Failed to read deployment mode from env"),
+    )
+    .expect("Failed to parse Environment from str");
+
+    match deployment {
+        Deployment::Prod => {
+            let mut body = web::BytesMut::new();
+            while let Some(chunk) = payload.next().await {
+                let chunk = chunk?;
+                if (body.len() + chunk.len()) > MAX_SIZE {
+                    return Err(actix_web::error::ErrorBadRequest(
+                        "Subscribe POST request bytes overflow",
+                    ));
+                }
+                body.extend_from_slice(&chunk);
+            }
+
+            let buyer_email = serde_json::from_slice::<UserEmailRequest>(&body)?;
+            let client = SQUARE_CLIENT.lock().await;
+
+            let info: UserSessions = client.get_user_sessions(buyer_email).await?;
+            debug!("Get user sessions info: {:?}", &info);
+
+            Ok(HttpResponse::Ok().json(info))
+        }
+        Deployment::Dev => {
+            let info = UserSessions {
+                email: Some("email@example.com".to_string()),
+                sessions: Some(0),
+            };
+
+            Ok(HttpResponse::Ok().json(info))
         }
     }
 }
@@ -633,4 +712,12 @@ async fn catalogs() -> Result<HttpResponse, Error> {
     let client = SQUARE_CLIENT.lock().await;
     let list = client.list_catalogs().await?;
     Ok(HttpResponse::Ok().json(list))
+}
+
+// todo: scope = admin
+#[get("/create_attribute")]
+async fn create_attribute() -> Result<HttpResponse, Error> {
+    let client = SQUARE_CLIENT.lock().await;
+    let res = client.create_custom_attribute().await?;
+    Ok(HttpResponse::Ok().json(res))
 }

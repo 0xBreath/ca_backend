@@ -16,10 +16,10 @@ pub struct SquareClient {
     pub redirect_url: String,
     pub coaching_catalog_id: String,
     pub coaching_catalog_item_name: String,
-    pub coaching_1_session_price: String,
-    pub coaching_3_session_price: String,
-    pub coaching_6_session_price: String,
-    pub coaching_10_session_price: String,
+    pub coaching_1_session_price: u64,
+    pub coaching_3_session_price: u64,
+    pub coaching_6_session_price: u64,
+    pub coaching_10_session_price: u64,
 }
 
 impl SquareClient {
@@ -47,13 +47,21 @@ impl SquareClient {
             coaching_catalog_item_name: std::env::var("SQUARE_COACHING_CATALOG_ITEM_NAME")
                 .unwrap_or_else(|_| "".to_string()),
             coaching_1_session_price: std::env::var("SQUARE_COACHING_1_SESSION_PRICE")
-                .unwrap_or_else(|_| "".to_string()),
+                .unwrap_or_else(|_| "".to_string())
+                .parse::<u64>()
+                .unwrap(),
             coaching_3_session_price: std::env::var("SQUARE_COACHING_3_SESSION_PRICE")
-                .unwrap_or_else(|_| "".to_string()),
+                .unwrap_or_else(|_| "".to_string())
+                .parse::<u64>()
+                .unwrap(),
             coaching_6_session_price: std::env::var("SQUARE_COACHING_6_SESSION_PRICE")
-                .unwrap_or_else(|_| "".to_string()),
+                .unwrap_or_else(|_| "".to_string())
+                .parse::<u64>()
+                .unwrap(),
             coaching_10_session_price: std::env::var("SQUARE_COACHING_10_SESSION_PRICE")
-                .unwrap_or_else(|_| "".to_string()),
+                .unwrap_or_else(|_| "".to_string())
+                .parse::<u64>()
+                .unwrap(),
         }
     }
 
@@ -65,7 +73,7 @@ impl SquareClient {
             return Ok(None);
         }
         let search_customer_endpoint = self.base_url.clone() + "v2/customers/search";
-        let query = SearchCustomerRequest::new(request.email.unwrap()).to_value()?;
+        let query = SearchCustomerRequest::new(request.clone().email.unwrap()).to_value()?;
         let search_res = self
             .client
             .post(search_customer_endpoint)
@@ -175,6 +183,11 @@ impl SquareClient {
                 actix_web::error::ErrorBadRequest("Failed to parse POST response from Square")
             })?;
             debug!("POST Square create customer: {:?}", &res);
+
+            let user_email_request = UserEmailRequest {
+                email: Some(request.email_address.clone()),
+            };
+            self.update_customer_sessions(user_email_request, 0).await?;
 
             Ok(res)
         } else {
@@ -312,10 +325,10 @@ impl SquareClient {
         let request = CoachingCatalogBuilder {
             id: "#coaching".to_string(),
             name: self.coaching_catalog_item_name.clone(),
-            single_session_price: self.coaching_1_session_price.parse::<u64>().unwrap(),
-            three_session_price: self.coaching_3_session_price.parse::<u64>().unwrap(),
-            six_session_price: self.coaching_6_session_price.parse::<u64>().unwrap(),
-            ten_session_price: self.coaching_10_session_price.parse::<u64>().unwrap(),
+            single_session_price: self.coaching_1_session_price,
+            three_session_price: self.coaching_3_session_price,
+            six_session_price: self.coaching_6_session_price,
+            ten_session_price: self.coaching_10_session_price,
         };
 
         // upsert catalog
@@ -604,23 +617,24 @@ impl SquareClient {
         }
     }
 
-    pub async fn get_user_profile(
-        &self,
-        request: UserEmailRequest,
-    ) -> Result<Option<UserProfile>, Error> {
+    pub async fn get_user_profile(&self, request: UserEmailRequest) -> Result<UserProfile, Error> {
         let customer = self.get_customer_info(request.clone()).await?;
         let sub_info = self.get_subscription_info().await?;
         let user_sub_info = self.get_user_subscription_info(request).await?;
         match (customer, sub_info) {
             (Some(customer), Some(sub_info)) => {
                 debug!("Customer card: {:?}", customer.cards);
-                Ok(Some(UserProfile {
-                    customer,
-                    subscription_info: sub_info,
+                Ok(UserProfile {
+                    customer: Some(customer),
+                    subscription_info: Some(sub_info),
                     user_subscription: user_sub_info,
-                }))
+                })
             }
-            _ => Ok(None),
+            _ => Ok(UserProfile {
+                customer: None,
+                subscription_info: None,
+                user_subscription: None,
+            }),
         }
     }
 
@@ -831,4 +845,142 @@ impl SquareClient {
 
         Ok(emails)
     }
+
+    // CreateCustomAttributeResponse
+    pub async fn create_custom_attribute(&self) -> Result<CreateCustomAttributeResponse, Error> {
+        let attribute = "sessions";
+        let endpoint = self.base_url.clone() + "v2/customers/custom-attribute-definitions";
+
+        let res = self
+            .client
+            .post(endpoint)
+            .header("Square-Version", self.version.clone())
+            .bearer_auth(self.token.clone())
+            .header("Content-Type", "application/json")
+            .json(&CreateCustomAttributeRequest::new(attribute.to_string()))
+            .send()
+            .await
+            .map_err(|_| {
+                actix_web::error::ErrorBadRequest(
+                    "Failed to POST create custom attribute to Square",
+                )
+            })
+            .unwrap();
+        let object = res
+            .json::<CreateCustomAttributeResponse>()
+            .await
+            .map_err(|_| {
+                actix_web::error::ErrorBadRequest("Failed to parse POST create custom attribute")
+            })
+            .unwrap();
+        Ok(object)
+    }
+
+    async fn get_customer_sessions(
+        &self,
+        request: UserEmailRequest,
+    ) -> Result<Option<CustomerAttributeResponse>, Error> {
+        match self.get_customer(request.clone()).await? {
+            None => Ok(None),
+            Some(user) => {
+                let customer_id = user.id;
+
+                let attribute = "sessions";
+                let endpoint = self.base_url.clone()
+                    + "v2/customers/"
+                    + &*customer_id
+                    + "/custom-attributes/"
+                    + attribute;
+
+                let res = self
+                    .client
+                    .get(endpoint)
+                    .header("Square-Version", self.version.clone())
+                    .bearer_auth(self.token.clone())
+                    .header("Content-Type", "application/json")
+                    .send()
+                    .await
+                    .map_err(|_| {
+                        actix_web::error::ErrorBadRequest(
+                            "Failed to GET customer attribute from Square",
+                        )
+                    })
+                    .unwrap();
+
+                let object = res.json::<CustomerAttributeResponse>().await.map_err(|_| {
+                    actix_web::error::ErrorBadRequest("Failed to parse customer attribute")
+                })?;
+                Ok(Some(object))
+            }
+        }
+    }
+
+    async fn update_customer_sessions(
+        &self,
+        request: UserEmailRequest,
+        sessions: u8,
+    ) -> Result<CustomerAttributeResponse, Error> {
+        let customer_id = self.get_customer(request.clone()).await?.unwrap().id;
+
+        let attribute = "sessions";
+        let endpoint = self.base_url.clone()
+            + "v2/customers/"
+            + &*customer_id
+            + "/custom-attributes/"
+            + attribute;
+
+        let res = self
+            .client
+            .post(endpoint)
+            .header("Square-Version", self.version.clone())
+            .bearer_auth(self.token.clone())
+            .header("Content-Type", "application/json")
+            .json(&UpdateCustomerAttributeRequest::new(
+                attribute.to_string(),
+                sessions,
+            ))
+            .send()
+            .await
+            .map_err(|_| {
+                actix_web::error::ErrorBadRequest("Failed to GET customer attribute from Square")
+            })
+            .unwrap();
+
+        let object = res
+            .json::<CustomerAttributeResponse>()
+            .await
+            .map_err(|_| actix_web::error::ErrorBadRequest("Failed to parse customer attribute"))
+            .unwrap();
+
+        Ok(object)
+    }
+
+    async fn get_or_customer_sessions(
+        &self,
+        request: UserEmailRequest,
+    ) -> Result<CustomerAttributeResponse, Error> {
+        match self.get_customer_sessions(request.clone()).await? {
+            None => {
+                let object = self.update_customer_sessions(request.clone(), 0).await?;
+                Ok(object)
+            }
+            Some(object) => Ok(object),
+        }
+    }
+
+    pub async fn get_user_sessions(
+        &self,
+        request: UserEmailRequest,
+    ) -> Result<UserSessions, Error> {
+        let res = self.get_or_customer_sessions(request.clone()).await?;
+        let info = UserSessions {
+            email: Some(request.email.unwrap()),
+            sessions: Some(res.custom_attribute.value.parse::<u8>().unwrap()),
+        };
+        Ok(info)
+    }
+
+    // todo: buy sessions
+
+    // todo: use session
 }
