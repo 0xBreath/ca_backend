@@ -6,8 +6,8 @@ pub mod location;
 pub mod subscription;
 pub mod invoice;
 pub mod client;
+pub mod coaching_package;
 
-pub use card::*;
 pub use catalog::*;
 pub use customer::*;
 pub use checkout::*;
@@ -15,6 +15,7 @@ pub use location::*;
 pub use subscription::*;
 pub use invoice::*;
 pub use client::*;
+pub use coaching_package::*;
 
 use serde::{Serialize, Deserialize};
 

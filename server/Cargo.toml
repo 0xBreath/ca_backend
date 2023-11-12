@@ -38,3 +38,4 @@ alcoholic_jwt = "4091.0.0"
 derive_more = "0.99.17"
 actix-web-httpauth = "0.8.1"
 google-cloud-storage = { version = "0.14.0", features = ["default"] }
+serde_repr = "0.1.17"
