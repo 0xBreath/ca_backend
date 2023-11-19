@@ -187,7 +187,15 @@ impl SquareClient {
             let user_email_request = UserEmailRequest {
                 email: Some(request.email_address.clone()),
             };
-            self.update_customer_sessions(user_email_request, 0).await?;
+            self.update_customer_sessions_info(
+                user_email_request,
+                SessionsInfoUpdate {
+                    sessions: DeltaSessions::Reset,
+                    sessions_credited: DeltaSessions::Reset,
+                    sessions_debited: DeltaSessions::Reset,
+                },
+            )
+            .await?;
 
             Ok(res)
         } else {
@@ -847,8 +855,10 @@ impl SquareClient {
     }
 
     // CreateCustomAttributeResponse
-    pub async fn create_custom_attribute(&self) -> Result<CreateCustomAttributeResponse, Error> {
-        let attribute = "sessions";
+    pub async fn create_custom_attribute(
+        &self,
+        attribute: String,
+    ) -> Result<CreateCustomAttributeResponse, Error> {
         let endpoint = self.base_url.clone() + "v2/customers/custom-attribute-definitions";
 
         let res = self
@@ -857,7 +867,7 @@ impl SquareClient {
             .header("Square-Version", self.version.clone())
             .bearer_auth(self.token.clone())
             .header("Content-Type", "application/json")
-            .json(&CreateCustomAttributeRequest::new(attribute.to_string()))
+            .json(&CreateCustomAttributeRequest::new(attribute))
             .send()
             .await
             .map_err(|_| {
@@ -876,58 +886,91 @@ impl SquareClient {
         Ok(object)
     }
 
-    async fn get_customer_sessions(
+    async fn get_customer_attribute(
+        &self,
+        customer_id: String,
+        attribute: String,
+    ) -> Result<Option<CustomerAttributeResponse>, Error> {
+        let endpoint = self.base_url.clone()
+            + "v2/customers/"
+            + &customer_id
+            + "/custom-attributes/"
+            + &attribute;
+
+        let res = self
+            .client
+            .get(endpoint)
+            .header("Square-Version", self.version.clone())
+            .bearer_auth(self.token.clone())
+            .header("Content-Type", "application/json")
+            .send()
+            .await
+            .map_err(|_| {
+                actix_web::error::ErrorBadRequest("Failed to GET customer attribute from Square")
+            })
+            .unwrap();
+
+        let object = res
+            .json::<CustomerAttributeResponse>()
+            .await
+            .map_err(|_| actix_web::error::ErrorBadRequest("Failed to parse customer attribute"))?;
+        Ok(Some(object))
+    }
+
+    async fn get_customer_sessions_info(
         &self,
         request: UserEmailRequest,
-    ) -> Result<Option<CustomerAttributeResponse>, Error> {
+    ) -> Result<Option<SessionsInfo>, Error> {
         match self.get_customer(request.clone()).await? {
             None => Ok(None),
-            Some(user) => {
-                let customer_id = user.id;
-
-                let attribute = "sessions";
-                let endpoint = self.base_url.clone()
-                    + "v2/customers/"
-                    + &*customer_id
-                    + "/custom-attributes/"
-                    + attribute;
-
-                let res = self
-                    .client
-                    .get(endpoint)
-                    .header("Square-Version", self.version.clone())
-                    .bearer_auth(self.token.clone())
-                    .header("Content-Type", "application/json")
-                    .send()
-                    .await
-                    .map_err(|_| {
-                        actix_web::error::ErrorBadRequest(
-                            "Failed to GET customer attribute from Square",
-                        )
-                    })
-                    .unwrap();
-
-                let object = res.json::<CustomerAttributeResponse>().await.map_err(|_| {
-                    actix_web::error::ErrorBadRequest("Failed to parse customer attribute")
-                })?;
-                Ok(Some(object))
+            Some(customer) => {
+                let customer_id = customer.id;
+                let sessions = self
+                    .get_customer_attribute(customer_id.clone(), "sessions".to_string())
+                    .await?;
+                let sessions_credited = self
+                    .get_customer_attribute(customer_id.clone(), "sessions_credited".to_string())
+                    .await?;
+                let sessions_debited = self
+                    .get_customer_attribute(customer_id.clone(), "sessions_debited".to_string())
+                    .await?;
+                if let (Some(sessions), Some(sessions_credited), Some(sessions_debited)) =
+                    (sessions, sessions_credited, sessions_debited)
+                {
+                    Ok(Some(SessionsInfo {
+                        email: request.email.unwrap(),
+                        sessions: sessions.custom_attribute.value.parse::<u8>().unwrap(),
+                        sessions_credited: sessions_credited
+                            .custom_attribute
+                            .value
+                            .parse::<u8>()
+                            .unwrap(),
+                        sessions_debited: sessions_debited
+                            .custom_attribute
+                            .value
+                            .parse::<u8>()
+                            .unwrap(),
+                    }))
+                } else {
+                    Ok(None)
+                }
             }
         }
     }
 
-    async fn update_customer_sessions(
+    async fn update_customer_attribute(
         &self,
         request: UserEmailRequest,
-        sessions: u8,
+        attribute: SessionAttribute,
+        data: u8,
     ) -> Result<CustomerAttributeResponse, Error> {
         let customer_id = self.get_customer(request.clone()).await?.unwrap().id;
 
-        let attribute = "sessions";
         let endpoint = self.base_url.clone()
             + "v2/customers/"
             + &*customer_id
             + "/custom-attributes/"
-            + attribute;
+            + &attribute.key();
 
         let res = self
             .client
@@ -935,10 +978,7 @@ impl SquareClient {
             .header("Square-Version", self.version.clone())
             .bearer_auth(self.token.clone())
             .header("Content-Type", "application/json")
-            .json(&UpdateCustomerAttributeRequest::new(
-                attribute.to_string(),
-                sessions,
-            ))
+            .json(&UpdateCustomerAttributeRequest::new(attribute.key(), data))
             .send()
             .await
             .map_err(|_| {
@@ -955,15 +995,180 @@ impl SquareClient {
         Ok(object)
     }
 
-    async fn get_or_customer_sessions(
+    async fn update_customer_sessions_info(
         &self,
         request: UserEmailRequest,
-    ) -> Result<CustomerAttributeResponse, Error> {
-        match self.get_customer_sessions(request.clone()).await? {
-            None => {
-                let object = self.update_customer_sessions(request.clone(), 0).await?;
-                Ok(object)
-            }
+        info: SessionsInfoUpdate,
+    ) -> Result<SessionsInfo, Error> {
+        let customer_id = self.get_customer(request.clone()).await?.unwrap().id;
+        let sessions = self
+            .get_customer_attribute(customer_id.clone(), "sessions".to_string())
+            .await?;
+        let sessions_credited = self
+            .get_customer_attribute(customer_id.clone(), "sessions_credited".to_string())
+            .await?;
+        let sessions_debited = self
+            .get_customer_attribute(customer_id.clone(), "sessions_debited".to_string())
+            .await?;
+        if let (Some(sessions), Some(sessions_credited), Some(sessions_debited)) =
+            (sessions, sessions_credited, sessions_debited)
+        {
+            let old_sessions = sessions.custom_attribute.value.parse::<u8>().unwrap();
+            let new_sessions = match info.sessions {
+                DeltaSessions::Reset => {
+                    self.update_customer_attribute(request.clone(), SessionAttribute::Sessions, 0)
+                        .await?
+                }
+                DeltaSessions::Increment(value) => {
+                    self.update_customer_attribute(
+                        request.clone(),
+                        SessionAttribute::Sessions,
+                        info.sessions.delta(Some(old_sessions)),
+                    )
+                    .await?
+                }
+                DeltaSessions::Decrement(value) => {
+                    self.update_customer_attribute(
+                        request.clone(),
+                        SessionAttribute::Sessions,
+                        info.sessions.delta(Some(old_sessions)),
+                    )
+                    .await?
+                }
+            };
+
+            let old_sessions_credited = sessions_credited
+                .custom_attribute
+                .value
+                .parse::<u8>()
+                .unwrap();
+            let new_sessions_credited = match info.sessions_credited {
+                DeltaSessions::Reset => {
+                    self.update_customer_attribute(
+                        request.clone(),
+                        SessionAttribute::SessionsCredited,
+                        0,
+                    )
+                    .await?
+                }
+                DeltaSessions::Increment(value) => {
+                    self.update_customer_attribute(
+                        request.clone(),
+                        SessionAttribute::SessionsCredited,
+                        info.sessions_credited.delta(Some(old_sessions_credited)),
+                    )
+                    .await?
+                }
+                DeltaSessions::Decrement(value) => {
+                    self.update_customer_attribute(
+                        request.clone(),
+                        SessionAttribute::SessionsCredited,
+                        info.sessions_credited.delta(Some(old_sessions_credited)),
+                    )
+                    .await?
+                }
+            };
+
+            let old_sessions_debited = sessions_debited
+                .custom_attribute
+                .value
+                .parse::<u8>()
+                .unwrap();
+            let new_sessions_debited = match info.sessions {
+                DeltaSessions::Reset => {
+                    self.update_customer_attribute(
+                        request.clone(),
+                        SessionAttribute::SessionsDebited,
+                        0,
+                    )
+                    .await?
+                }
+                DeltaSessions::Increment(value) => {
+                    self.update_customer_attribute(
+                        request.clone(),
+                        SessionAttribute::SessionsDebited,
+                        info.sessions_debited.delta(Some(old_sessions_debited)),
+                    )
+                    .await?
+                }
+                DeltaSessions::Decrement(value) => {
+                    self.update_customer_attribute(
+                        request.clone(),
+                        SessionAttribute::SessionsDebited,
+                        info.sessions_debited.delta(Some(old_sessions_debited)),
+                    )
+                    .await?
+                }
+            };
+
+            Ok(SessionsInfo {
+                email: request.email.unwrap(),
+                sessions: new_sessions.custom_attribute.value.parse::<u8>().unwrap(),
+                sessions_credited: new_sessions_credited
+                    .custom_attribute
+                    .value
+                    .parse::<u8>()
+                    .unwrap(),
+                sessions_debited: new_sessions_debited
+                    .custom_attribute
+                    .value
+                    .parse::<u8>()
+                    .unwrap(),
+            })
+        } else {
+            let new_sessions = self
+                .update_customer_attribute(
+                    request.clone(),
+                    SessionAttribute::Sessions,
+                    info.sessions.delta(None),
+                )
+                .await?;
+            let new_sessions_credited = self
+                .update_customer_attribute(
+                    request.clone(),
+                    SessionAttribute::SessionsCredited,
+                    info.sessions_credited.delta(None),
+                )
+                .await?;
+            let new_sessions_debited = self
+                .update_customer_attribute(
+                    request.clone(),
+                    SessionAttribute::SessionsDebited,
+                    info.sessions_debited.delta(None),
+                )
+                .await?;
+            Ok(SessionsInfo {
+                email: request.email.unwrap(),
+                sessions: new_sessions.custom_attribute.value.parse::<u8>().unwrap(),
+                sessions_credited: new_sessions_credited
+                    .custom_attribute
+                    .value
+                    .parse::<u8>()
+                    .unwrap(),
+                sessions_debited: new_sessions_debited
+                    .custom_attribute
+                    .value
+                    .parse::<u8>()
+                    .unwrap(),
+            })
+        }
+    }
+
+    async fn get_or_create_customer_sessions_info(
+        &self,
+        request: UserEmailRequest,
+    ) -> Result<SessionsInfo, Error> {
+        match self.get_customer_sessions_info(request.clone()).await? {
+            None => Ok(self
+                .update_customer_sessions_info(
+                    request.clone(),
+                    SessionsInfoUpdate {
+                        sessions: DeltaSessions::Reset,
+                        sessions_credited: DeltaSessions::Reset,
+                        sessions_debited: DeltaSessions::Reset,
+                    },
+                )
+                .await?),
             Some(object) => Ok(object),
         }
     }
@@ -972,11 +1177,57 @@ impl SquareClient {
         &self,
         request: UserEmailRequest,
     ) -> Result<UserSessions, Error> {
-        let res = self.get_or_customer_sessions(request.clone()).await?;
+        let res = self
+            .get_or_create_customer_sessions_info(request.clone())
+            .await?;
         let info = UserSessions {
             email: Some(request.email.unwrap()),
-            sessions: Some(res.custom_attribute.value.parse::<u8>().unwrap()),
+            sessions: Some(res.sessions),
         };
+        Ok(info)
+    }
+
+    pub async fn cancel_subscription(
+        &self,
+        request: UserEmailRequest,
+    ) -> Result<CanceledSubscriptionInfo, Error> {
+        let subscription_id = self.get_subscription(request.clone()).await?.unwrap().id;
+        let endpoint = self.base_url.clone() + "v2/subscriptions/" + &subscription_id + "/cancel";
+
+        let res = self
+            .client
+            .post(endpoint)
+            .header("Square-Version", self.version.clone())
+            .bearer_auth(self.token.clone())
+            .header("Content-Type", "application/json")
+            .send()
+            .await
+            .map_err(|_| {
+                actix_web::error::ErrorBadRequest("Failed to GET customer attribute from Square")
+            })
+            .unwrap();
+
+        let object = res
+            .json::<CancelSubscriptionResponse>()
+            .await
+            .map_err(|_| actix_web::error::ErrorBadRequest("Failed to parse customer attribute"))
+            .unwrap();
+
+        // yyyy-mm-dd
+        // break apart into year, month, day
+        let charged_through_year = object.subscription.charged_through_date;
+        let date_parts = charged_through_year.split('-').collect::<Vec<&str>>();
+        let charged_through_year = date_parts[0].parse::<u16>().unwrap();
+        let charged_through_month = date_parts[1].parse::<u8>().unwrap();
+        let charged_through_day = date_parts[2].parse::<u8>().unwrap();
+
+        let info = CanceledSubscriptionInfo {
+            email: request.email.unwrap(),
+            charged_through_year,
+            charged_through_month,
+            charged_through_day,
+        };
+
         Ok(info)
     }
 

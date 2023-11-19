@@ -12,6 +12,7 @@ use actix_cors::Cors;
 use actix_web::http::header;
 use actix_web::{get, post, web, App, Error, HttpResponse, HttpServer, Responder, Result};
 use actix_web_httpauth::middleware::HttpAuthentication;
+use chrono::Datelike;
 use database::{Article, Calibration, Testimonial};
 use dotenv::dotenv;
 use futures::StreamExt;
@@ -121,8 +122,9 @@ async fn main() -> std::io::Result<()> {
                     .service(catalogs)
                     .service(upsert_coaching_catalog)
                     .service(coaching)
-                    .service(create_attribute)
+                    .service(create_attributes)
                     .service(user_sessions)
+                    .service(cancel_subscription)
             })
             .bind(bind_address)?
             .run()
@@ -160,8 +162,9 @@ async fn main() -> std::io::Result<()> {
                     .service(catalogs)
                     .service(upsert_coaching_catalog)
                     .service(coaching)
-                    .service(create_attribute)
+                    .service(create_attributes)
                     .service(user_sessions)
+                    .service(cancel_subscription)
             })
             .bind(bind_address)?
             .run()
@@ -656,6 +659,49 @@ async fn user_sessions(mut payload: web::Payload) -> Result<HttpResponse, Error>
     }
 }
 
+#[post("/cancel_subscription")]
+async fn cancel_subscription(mut payload: web::Payload) -> Result<HttpResponse, Error> {
+    let deployment = Deployment::from_str(
+        &std::env::var("DEPLOYMENT").expect("Failed to read deployment mode from env"),
+    )
+    .expect("Failed to parse Environment from str");
+
+    match deployment {
+        Deployment::Prod => {
+            let mut body = web::BytesMut::new();
+            while let Some(chunk) = payload.next().await {
+                let chunk = chunk?;
+                if (body.len() + chunk.len()) > MAX_SIZE {
+                    return Err(actix_web::error::ErrorBadRequest(
+                        "Subscribe POST request bytes overflow",
+                    ));
+                }
+                body.extend_from_slice(&chunk);
+            }
+
+            let buyer_email = serde_json::from_slice::<UserEmailRequest>(&body)?;
+            let client = SQUARE_CLIENT.lock().await;
+
+            let info: CanceledSubscriptionInfo = client.cancel_subscription(buyer_email).await?;
+
+            Ok(HttpResponse::Ok().json(info))
+        }
+        Deployment::Dev => {
+            let now = chrono::Utc::now();
+            let charged_through_year = now.year() as u16;
+            let charged_through_month = now.month() as u8;
+            let charged_through_day = now.day() as u8;
+            let info = CanceledSubscriptionInfo {
+                email: "email@example.com".to_string(),
+                charged_through_year,
+                charged_through_month,
+                charged_through_day,
+            };
+            Ok(HttpResponse::Ok().json(info))
+        }
+    }
+}
+
 // ================================== ADMIN API ================================== //
 
 // todo: scope = admin
@@ -715,9 +761,22 @@ async fn catalogs() -> Result<HttpResponse, Error> {
 }
 
 // todo: scope = admin
-#[get("/create_attribute")]
-async fn create_attribute() -> Result<HttpResponse, Error> {
+#[get("/create_attributes")]
+async fn create_attributes() -> Result<HttpResponse, Error> {
     let client = SQUARE_CLIENT.lock().await;
-    let res = client.create_custom_attribute().await?;
+    let sessions = client
+        .create_custom_attribute("sessions".to_string())
+        .await?;
+    let sessions_credited = client
+        .create_custom_attribute("sessions_credited".to_string())
+        .await?;
+    let sessions_debited = client
+        .create_custom_attribute("sessions_debited".to_string())
+        .await?;
+    let res = CustomAttributeResponses {
+        sessions,
+        sessions_credited,
+        sessions_debited,
+    };
     Ok(HttpResponse::Ok().json(res))
 }

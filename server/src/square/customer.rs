@@ -95,12 +95,12 @@ pub struct UpdateCustomerAttributeRequest {
 }
 
 impl UpdateCustomerAttributeRequest {
-    pub fn new(key: String, sessions: u8) -> Self {
+    pub fn new(key: String, value: u8) -> Self {
         Self {
             idempotency_key: uuid::Uuid::new_v4().to_string(),
             custom_attribute: CustomAttribute {
                 key,
-                value: sessions.to_string(),
+                value: value.to_string(),
             },
         }
     }
@@ -175,6 +175,13 @@ pub struct CardInfo {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CustomAttributeResponses {
+    pub sessions: CreateCustomAttributeResponse,
+    pub sessions_credited: CreateCustomAttributeResponse,
+    pub sessions_debited: CreateCustomAttributeResponse,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateCustomAttributeResponse {
     pub custom_attribute_definition: CustomAttributeDefinitionResponse,
 }
@@ -187,6 +194,13 @@ pub struct CustomAttributeDefinitionResponse {
     pub schema: CustomAttributeSchemaObject,
     pub created_at: String,
     pub visibility: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CustomerAttributesResponse {
+    pub sessions: CustomerAttributeResponse,
+    pub sessions_credited: CustomerAttributeResponse,
+    pub sessions_debited: CustomerAttributeResponse,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -252,6 +266,37 @@ impl DeltaSessions {
                     res
                 }
             }
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SessionsInfo {
+    pub email: String,
+    pub sessions: u8,
+    pub sessions_credited: u8,
+    pub sessions_debited: u8,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SessionsInfoUpdate {
+    pub sessions: DeltaSessions,
+    pub sessions_credited: DeltaSessions,
+    pub sessions_debited: DeltaSessions,
+}
+
+pub enum SessionAttribute {
+    Sessions,
+    SessionsCredited,
+    SessionsDebited,
+}
+
+impl SessionAttribute {
+    pub fn key(&self) -> String {
+        match self {
+            SessionAttribute::Sessions => "sessions".to_string(),
+            SessionAttribute::SessionsCredited => "sessions_credited".to_string(),
+            SessionAttribute::SessionsDebited => "sessions_debited".to_string(),
         }
     }
 }
