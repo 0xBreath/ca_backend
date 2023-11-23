@@ -101,15 +101,13 @@ async fn main() -> std::io::Result<()> {
                     .max_age(3600);
 
                 let auth = HttpAuthentication::bearer(validator);
-
-                // todo:
-                // let admin_auth;
+                let admin_auth = HttpAuthentication::bearer(admin_validator);
 
                 App::new()
                     .wrap(cors)
                     .service(
                         web::scope("/api")
-                            .wrap(auth.clone())
+                            .wrap(auth)
                             .service(articles)
                             .service(calibrations)
                             .service(testimonials)
@@ -123,7 +121,7 @@ async fn main() -> std::io::Result<()> {
                     )
                     .service(
                         web::scope("/admin")
-                            .wrap(auth)
+                            .wrap(admin_auth)
                             .service(catalogs)
                             .service(create_attributes)
                             .service(customers)
@@ -155,8 +153,7 @@ async fn main() -> std::io::Result<()> {
                     ])
                     .max_age(3600);
 
-                // todo:
-                // let admin_auth;
+                let admin_auth = HttpAuthentication::bearer(admin_validator);
 
                 App::new()
                     .wrap(cors)
