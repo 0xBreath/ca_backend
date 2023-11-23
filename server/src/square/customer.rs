@@ -1,3 +1,4 @@
+use crate::square::SquareErrorResponse;
 use crate::Address;
 use serde::{Deserialize, Serialize};
 
@@ -147,7 +148,7 @@ pub struct CustomAttributeSchemaObject {
 
 // ======================= Search Customer Response =======================
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchCustomerResponse {
     pub customers: Vec<CustomerResponse>,
 }
@@ -224,7 +225,7 @@ pub struct UserSessions {
     pub sessions: Option<u8>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum DeltaSessions {
     Reset,
     Increment(u8),
@@ -236,13 +237,11 @@ impl DeltaSessions {
         match existing {
             None => match self {
                 DeltaSessions::Reset => 0,
-                DeltaSessions::Increment(delta) => self.checked_delta(0),
-                DeltaSessions::Decrement(delta) => self.checked_delta(0),
+                _ => self.checked_delta(0),
             },
             Some(existing) => match self {
                 DeltaSessions::Reset => 0,
-                DeltaSessions::Increment(delta) => self.checked_delta(existing),
-                DeltaSessions::Decrement(delta) => self.checked_delta(existing),
+                _ => self.checked_delta(existing),
             },
         }
     }
@@ -251,19 +250,19 @@ impl DeltaSessions {
         match self {
             DeltaSessions::Reset => 0,
             DeltaSessions::Increment(delta) => {
-                let res = existing + delta;
+                let res = (existing as i16) + (*delta as i16);
                 if res < 0 {
                     0
                 } else {
-                    res
+                    res as u8
                 }
             }
             DeltaSessions::Decrement(delta) => {
-                let res = existing - delta;
+                let res = (existing as i16) - (*delta as i16);
                 if res < 0 {
                     0
                 } else {
-                    res
+                    res as u8
                 }
             }
         }

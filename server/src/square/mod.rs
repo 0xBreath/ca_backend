@@ -7,6 +7,8 @@ pub mod subscription;
 pub mod invoice;
 pub mod client;
 pub mod coaching_package;
+pub mod webhook;
+pub mod error;
 
 pub use catalog::*;
 pub use customer::*;
@@ -16,6 +18,8 @@ pub use subscription::*;
 pub use invoice::*;
 pub use client::*;
 pub use coaching_package::*;
+pub use webhook::*;
+pub use error::*;
 
 use serde::{Serialize, Deserialize};
 

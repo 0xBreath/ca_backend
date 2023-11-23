@@ -104,27 +104,32 @@ async fn main() -> std::io::Result<()> {
                 let auth = HttpAuthentication::bearer(validator);
 
                 App::new()
-                    .wrap(auth)
                     .wrap(cors)
-                    .service(test)
-                    .service(articles)
-                    .service(calibrations)
-                    .service(testimonials)
-                    .service(upsert_subscription_catalog)
-                    .service(subscribe)
-                    .service(subscriptions)
-                    .service(customers)
-                    .service(invoices)
-                    .service(email_list)
-                    .service(user_profile)
-                    .service(testimonial_images)
-                    .service(learn_images)
-                    .service(catalogs)
-                    .service(upsert_coaching_catalog)
-                    .service(coaching)
-                    .service(create_attributes)
-                    .service(user_sessions)
-                    .service(cancel_subscription)
+                    .service(
+                        web::scope("/api")
+                            .wrap(auth)
+                            .service(articles)
+                            .service(calibrations)
+                            .service(testimonials)
+                            .service(upsert_subscription_catalog)
+                            .service(subscribe)
+                            .service(subscriptions)
+                            .service(customers)
+                            .service(invoices)
+                            .service(email_list)
+                            .service(user_profile)
+                            .service(testimonial_images)
+                            .service(learn_images)
+                            .service(catalogs)
+                            .service(upsert_coaching_catalog)
+                            .service(coaching)
+                            .service(create_attributes)
+                            .service(user_sessions)
+                            .service(cancel_subscription)
+                            .service(list_webhook_events)
+                            .service(listen_webhook_invoices),
+                    )
+                    .service(invoice_webhook_callback)
             })
             .bind(bind_address)?
             .run()
@@ -146,25 +151,30 @@ async fn main() -> std::io::Result<()> {
 
                 App::new()
                     .wrap(cors)
-                    .service(test)
-                    .service(articles)
-                    .service(calibrations)
-                    .service(testimonials)
-                    .service(upsert_subscription_catalog)
-                    .service(subscribe)
-                    .service(subscriptions)
-                    .service(customers)
-                    .service(invoices)
-                    .service(email_list)
-                    .service(user_profile)
-                    .service(testimonial_images)
-                    .service(learn_images)
-                    .service(catalogs)
-                    .service(upsert_coaching_catalog)
-                    .service(coaching)
-                    .service(create_attributes)
-                    .service(user_sessions)
-                    .service(cancel_subscription)
+                    .service(
+                        web::scope("/api")
+                            .service(articles)
+                            .service(calibrations)
+                            .service(testimonials)
+                            .service(upsert_subscription_catalog)
+                            .service(subscribe)
+                            .service(subscriptions)
+                            .service(customers)
+                            .service(invoices)
+                            .service(email_list)
+                            .service(user_profile)
+                            .service(testimonial_images)
+                            .service(learn_images)
+                            .service(catalogs)
+                            .service(upsert_coaching_catalog)
+                            .service(coaching)
+                            .service(create_attributes)
+                            .service(user_sessions)
+                            .service(cancel_subscription)
+                            .service(list_webhook_events)
+                            .service(listen_webhook_invoices),
+                    )
+                    .service(invoice_webhook_callback)
             })
             .bind(bind_address)?
             .run()
@@ -192,9 +202,27 @@ pub fn init_logger(log_file: &PathBuf) -> std::io::Result<()> {
     .map_err(|_| std::io::Error::new(std::io::ErrorKind::Other, "Failed to initialize logger"))
 }
 
-#[get("/")]
-async fn test() -> impl Responder {
-    HttpResponse::Ok().body("Consciousness Archive server is running...")
+#[post("/")]
+async fn invoice_webhook_callback(mut payload: web::Payload) -> Result<HttpResponse, Error> {
+    let mut body = web::BytesMut::new();
+    while let Some(chunk) = payload.next().await {
+        let chunk = chunk?;
+        if (body.len() + chunk.len()) > MAX_SIZE {
+            return Err(actix_web::error::ErrorBadRequest(
+                "Invoice webhook callback POST request bytes overflow",
+            ));
+        }
+        body.extend_from_slice(&chunk);
+    }
+
+    let data = serde_json::from_slice::<InvoiceWebhookResponse>(&body)?;
+    info!("Invoice webhook callback data: {:?}", &data);
+
+    // let client = SQUARE_CLIENT.lock().await;
+    // let info: UserSessions = client.get_user_sessions(buyer_email).await?;
+    // debug!("Get user sessions info: {:?}", &info);
+
+    Ok(HttpResponse::Ok().json(data))
 }
 
 #[get("/learn_images")]
@@ -470,7 +498,7 @@ async fn subscribe(mut payload: web::Payload) -> Result<HttpResponse, Error> {
                 let chunk = chunk?;
                 if (body.len() + chunk.len()) > MAX_SIZE {
                     return Err(actix_web::error::ErrorBadRequest(
-                        "Subscribe POST request bytes overflow",
+                        "POST request bytes overflow",
                     ));
                 }
                 body.extend_from_slice(&chunk);
@@ -547,7 +575,7 @@ async fn user_profile(mut payload: web::Payload) -> Result<HttpResponse, Error> 
                 let chunk = chunk?;
                 if (body.len() + chunk.len()) > MAX_SIZE {
                     return Err(actix_web::error::ErrorBadRequest(
-                        "Subscribe POST request bytes overflow",
+                        "POST request bytes overflow",
                     ));
                 }
                 body.extend_from_slice(&chunk);
@@ -583,43 +611,6 @@ async fn user_profile(mut payload: web::Payload) -> Result<HttpResponse, Error> 
     }
 }
 
-// #[post("/user_sessions")]
-// async fn user_sessions(mut payload: web::Payload) -> Result<HttpResponse, Error> {
-//     let deployment = Deployment::from_str(
-//         &std::env::var("DEPLOYMENT").expect("Failed to read deployment mode from env"),
-//     )
-//     .expect("Failed to parse Environment from str");
-//
-//     match deployment {
-//         Deployment::Prod => {
-//             let mut body = web::BytesMut::new();
-//             while let Some(chunk) = payload.next().await {
-//                 let chunk = chunk?;
-//                 if (body.len() + chunk.len()) > MAX_SIZE {
-//                     return Err(actix_web::error::ErrorBadRequest(
-//                         "Subscribe POST request bytes overflow",
-//                     ));
-//                 }
-//                 body.extend_from_slice(&chunk);
-//             }
-//
-//             let buyer_email = serde_json::from_slice::<UserEmailRequest>(&body)?;
-//             let client = SQUARE_CLIENT.lock().await;
-//             let info: UserSessions = client.get_user_sessions(buyer_email).await?;
-//             debug!("Get user sessions info: {:?}", &info);
-//             Ok(HttpResponse::Ok().json(info))
-//         }
-//         Deployment::Dev => {
-//             let info = UserSessions {
-//                 email: Some("email@example.com".to_string()),
-//                 sessions: Some(0),
-//             };
-//
-//             Ok(HttpResponse::Ok().json(info))
-//         }
-//     }
-// }
-
 #[post("/user_sessions")]
 async fn user_sessions(mut payload: web::Payload) -> Result<HttpResponse, Error> {
     let deployment = Deployment::from_str(
@@ -634,7 +625,7 @@ async fn user_sessions(mut payload: web::Payload) -> Result<HttpResponse, Error>
                 let chunk = chunk?;
                 if (body.len() + chunk.len()) > MAX_SIZE {
                     return Err(actix_web::error::ErrorBadRequest(
-                        "Subscribe POST request bytes overflow",
+                        "POST request bytes overflow",
                     ));
                 }
                 body.extend_from_slice(&chunk);
@@ -673,7 +664,7 @@ async fn cancel_subscription(mut payload: web::Payload) -> Result<HttpResponse, 
                 let chunk = chunk?;
                 if (body.len() + chunk.len()) > MAX_SIZE {
                     return Err(actix_web::error::ErrorBadRequest(
-                        "Subscribe POST request bytes overflow",
+                        "POST request bytes overflow",
                     ));
                 }
                 body.extend_from_slice(&chunk);
@@ -682,9 +673,15 @@ async fn cancel_subscription(mut payload: web::Payload) -> Result<HttpResponse, 
             let buyer_email = serde_json::from_slice::<UserEmailRequest>(&body)?;
             let client = SQUARE_CLIENT.lock().await;
 
-            let info: CanceledSubscriptionInfo = client.cancel_subscription(buyer_email).await?;
-
-            Ok(HttpResponse::Ok().json(info))
+            let info = client.cancel_subscription(buyer_email).await?;
+            if let SquareResponse::Success(info) = info {
+                Ok(HttpResponse::Ok().json(info))
+            } else {
+                error!("Failed to cancel subscription: {:?}", &info);
+                Err(actix_web::error::ErrorBadRequest(
+                    "Failed to cancel subscription",
+                ))
+            }
         }
         Deployment::Dev => {
             let now = chrono::Utc::now();
@@ -704,7 +701,7 @@ async fn cancel_subscription(mut payload: web::Payload) -> Result<HttpResponse, 
 
 // ================================== ADMIN API ================================== //
 
-// todo: scope = admin
+// todo: admin feature enabled for local deployment
 #[get("/upsert_subscription_catalog")]
 async fn upsert_subscription_catalog() -> Result<HttpResponse, Error> {
     let client = SQUARE_CLIENT.lock().await;
@@ -712,7 +709,7 @@ async fn upsert_subscription_catalog() -> Result<HttpResponse, Error> {
     Ok(HttpResponse::Ok().json(catalog))
 }
 
-// todo: scope = admin
+// todo: admin feature enabled for local deployment
 #[get("/upsert_coaching_catalog")]
 async fn upsert_coaching_catalog() -> Result<HttpResponse, Error> {
     let client = SQUARE_CLIENT.lock().await;
@@ -720,7 +717,7 @@ async fn upsert_coaching_catalog() -> Result<HttpResponse, Error> {
     Ok(HttpResponse::Ok().json(catalog))
 }
 
-// todo: scope = admin
+// todo: admin feature enabled for local deployment
 #[get("/subscriptions")]
 async fn subscriptions() -> Result<HttpResponse, Error> {
     let client = SQUARE_CLIENT.lock().await;
@@ -728,7 +725,7 @@ async fn subscriptions() -> Result<HttpResponse, Error> {
     Ok(HttpResponse::Ok().json(list))
 }
 
-// todo: scope = admin
+// todo: admin feature enabled for local deployment
 #[get("/email_list")]
 async fn email_list() -> Result<HttpResponse, Error> {
     let client = SQUARE_CLIENT.lock().await;
@@ -736,7 +733,7 @@ async fn email_list() -> Result<HttpResponse, Error> {
     Ok(HttpResponse::Ok().json(list))
 }
 
-// todo: scope = admin
+// todo: admin feature enabled for local deployment
 #[get("/customers")]
 async fn customers() -> Result<HttpResponse, Error> {
     let client = SQUARE_CLIENT.lock().await;
@@ -744,7 +741,7 @@ async fn customers() -> Result<HttpResponse, Error> {
     Ok(HttpResponse::Ok().json(list))
 }
 
-// todo: scope = admin
+// todo: admin feature enabled for local deployment
 #[get("/invoices")]
 async fn invoices() -> Result<HttpResponse, Error> {
     let client = SQUARE_CLIENT.lock().await;
@@ -752,7 +749,7 @@ async fn invoices() -> Result<HttpResponse, Error> {
     Ok(HttpResponse::Ok().json(list))
 }
 
-// todo: scope = admin
+// todo: admin feature enabled for local deployment
 #[get("/catalogs")]
 async fn catalogs() -> Result<HttpResponse, Error> {
     let client = SQUARE_CLIENT.lock().await;
@@ -760,7 +757,15 @@ async fn catalogs() -> Result<HttpResponse, Error> {
     Ok(HttpResponse::Ok().json(list))
 }
 
-// todo: scope = admin
+use serde::{Deserialize, Serialize};
+#[derive(Debug, Serialize, Deserialize)]
+struct CustomShit {
+    sessions: SquareResponse<CreateCustomAttributeResponse>,
+    sessions_credited: SquareResponse<CreateCustomAttributeResponse>,
+    sessions_debited: SquareResponse<CreateCustomAttributeResponse>,
+}
+
+// todo: admin feature enabled for local deployment
 #[get("/create_attributes")]
 async fn create_attributes() -> Result<HttpResponse, Error> {
     let client = SQUARE_CLIENT.lock().await;
@@ -773,10 +778,32 @@ async fn create_attributes() -> Result<HttpResponse, Error> {
     let sessions_debited = client
         .create_custom_attribute("sessions_debited".to_string())
         .await?;
-    let res = CustomAttributeResponses {
+    // let res = CustomAttributeResponses {
+    //     sessions,
+    //     sessions_credited,
+    //     sessions_debited,
+    // };
+    let res = CustomShit {
         sessions,
         sessions_credited,
         sessions_debited,
     };
+    Ok(HttpResponse::Ok().json(res))
+}
+
+// todo: admin feature enabled for local deployment
+#[get("/webhook_events")]
+async fn list_webhook_events() -> Result<HttpResponse, Error> {
+    let client = SQUARE_CLIENT.lock().await;
+    let res = client.list_available_webhook_events().await?;
+    Ok(HttpResponse::Ok().json(res))
+}
+
+// todo: admin feature enabled for local deployment
+// todo: call on server startup
+#[get("/listen_webhook_invoices")]
+async fn listen_webhook_invoices() -> Result<HttpResponse, Error> {
+    let client = SQUARE_CLIENT.lock().await;
+    let res = client.listen_to_webhook_invoices().await?;
     Ok(HttpResponse::Ok().json(res))
 }

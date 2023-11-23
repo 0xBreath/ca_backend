@@ -8,23 +8,23 @@
 
 
 # Consciousness Archive Server
-Server to deliver consciousness calibrations, images, videos, audio, article/course markdown files, and more.
-Files are stored in local memory.
+Server to deliver consciousness calibrations, images, videos, audio, article/course markdown files, and more from local memory,
+and read and write customer data and payment links from Square API.
 
 
-Initialize Database
+### Initialize Database
 ```shell
-cargo make upsert_articles
+cargo make reset_database
 ```
 
 ## Run Server
 ```shell
-cargo run -r -p ca_server
+cargo run -r -p server
 ```
 
 ## Run Admin
 ```shell
-cargo run -r -p ca_admin -t <file_type> -f <path> -n <name> -i <image_url>
+cargo run -r -p admin -t <file_type> -f <path> -n <name> -i <image_url>
 ```
 
 #### Convert Evernote Article to Markdown
@@ -99,21 +99,27 @@ Copy contents of that JSON into `gcloud_credentials.json`
 Make sure `GOOGLE_APPLICATION_CREDENTIALS=./gcloud_credentials.json` is in the `.env` file.
 
 
+### Ngrok Localhost HTTPS Webhook
+Visit [ngrok](https://ngrok.com/) and login.
+Navigate to `Your Authtoken` page and paste this command into the terminal:
+```shell
+ngrok config add-authtoken 2YOxQ6IwAsMHcZQYXEcld999GgG_zAf6iJZQmp3zdfdcNMZ8
+```
+Start the server with:
+```shell
+ngrok http 3333
+```
+Set the `Forwarding` address as `WEBHOOK_URL` in the `.env` file.
 
 
-### Set Up Square Subscription
-TODO
+### Create Square Subscription Catalog
+Hit `/upsert_subscription_catalog` endpoint.
+After creating a catalog, use `result.catalog_object.id`
+or use `result.catalog_object.subscription_plan_variation_data.subscription_plan_id`
+to set as `SQUARE_SUBSCRIPTION_CATALOG_ID` in the `.env` file.
 
 
-### TODO
-<h4 style="color: red"> High </h4>
-  - GCP load balancer for CDN
-  - Subscription API
-  - Async database read/write?
-
-<h4 style="color: orange"> Medium </h4>
-- Admin upload dashboard
-  - input article/course as .enex file from Evernote, auto conver to .md
-  - input image file, upload to google cloud storage, return url
-  - input article/course title
-  - upsert to database
+### Create Square Coaching Catalog
+Hit `/upsert_coaching_catalog` endpoint.
+After creating a catalog, use `result.catalog_object.id`
+to set as the `SQUARE_COACHING_CATALOG_ID` in the `.env` file.
