@@ -507,9 +507,15 @@ async fn subscribe(mut payload: web::Payload) -> Result<HttpResponse, Error> {
             let buyer_email = serde_json::from_slice::<UserEmailRequest>(&body)?;
             debug!("Checkout user email: {:?}", &buyer_email);
             let client = SQUARE_CLIENT.lock().await;
-            let subscribe = client.subscribe_checkout(buyer_email).await?;
-            info!("Subscription checkout: {:?}", &subscribe);
-            Ok(HttpResponse::Ok().json(subscribe))
+            let res = client.subscribe_checkout(buyer_email).await?;
+
+            if let SquareResponse::Success(subscribe) = res {
+                info!("Subscription checkout: {:?}", &subscribe);
+                Ok(HttpResponse::Ok().json(subscribe))
+            } else {
+                error!("Failed to subscribe: {:?}", &res);
+                Err(actix_web::error::ErrorBadRequest("Failed to subscribe"))
+            }
         }
         Deployment::Dev => {
             let url = "http://localhost:3000".to_string();
@@ -550,8 +556,18 @@ async fn coaching(mut payload: web::Payload) -> Result<HttpResponse, Error> {
                 .await
                 .unwrap_or_else(|e| panic!("Failed to fetch coaching checkout response: {}", e));
 
-            info!("Coaching checkout: {:?}", &checkout);
-            Ok(HttpResponse::Ok().json(checkout))
+            if let SquareResponse::Success(checkout) = checkout {
+                info!("Coaching checkout: {:?}", &checkout);
+                Ok(HttpResponse::Ok().json(checkout))
+            } else {
+                error!(
+                    "Failed to get coaching package checkout info: {:?}",
+                    &checkout
+                );
+                Err(actix_web::error::ErrorBadRequest(
+                    "Failed to get coaching package checkout info",
+                ))
+            }
         }
         Deployment::Dev => {
             let url = "http://localhost:3000".to_string();
