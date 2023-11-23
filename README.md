@@ -112,14 +112,20 @@ ngrok http 3333
 Set the `Forwarding` address as `WEBHOOK_URL` in the `.env` file.
 
 
+# Admin Setup for Square API
+
 ### Create Square Subscription Catalog
-Hit `/upsert_subscription_catalog` endpoint.
+Hit `/api/upsert_subscription_catalog` endpoint.
 After creating a catalog, use `result.catalog_object.id`
 or use `result.catalog_object.subscription_plan_variation_data.subscription_plan_id`
 to set as `SQUARE_SUBSCRIPTION_CATALOG_ID` in the `.env` file.
 
 
 ### Create Square Coaching Catalog
-Hit `/upsert_coaching_catalog` endpoint.
+Hit `/api/upsert_coaching_catalog` endpoint.
 After creating a catalog, use `result.catalog_object.id`
 to set as the `SQUARE_COACHING_CATALOG_ID` in the `.env` file.
+
+
+### Create Custom Attributes for Customers
+Hit `/api/create_attributes` endpoint.

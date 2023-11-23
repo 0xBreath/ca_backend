@@ -44,11 +44,10 @@ pub enum Deployment {
 
 impl PartialEq for Deployment {
     fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Deployment::Dev, Deployment::Dev) => true,
-            (Deployment::Prod, Deployment::Prod) => true,
-            _ => false,
-        }
+        matches!(
+            (self, other),
+            (Deployment::Dev, Deployment::Dev) | (Deployment::Prod, Deployment::Prod)
+        )
     }
 }
 
@@ -56,14 +55,14 @@ impl FromStr for Deployment {
     type Err = ();
 
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        return match s {
+        match s {
             "dev" => Ok(Self::Dev),
             "prod" => Ok(Self::Prod),
             _ => {
                 error!("Invalid deployment environment in env");
                 Err(())
             }
-        };
+        }
     }
 }
 
@@ -103,31 +102,38 @@ async fn main() -> std::io::Result<()> {
 
                 let auth = HttpAuthentication::bearer(validator);
 
+                // todo:
+                // let admin_auth;
+
                 App::new()
                     .wrap(cors)
                     .service(
                         web::scope("/api")
-                            .wrap(auth)
+                            .wrap(auth.clone())
                             .service(articles)
                             .service(calibrations)
                             .service(testimonials)
-                            .service(upsert_subscription_catalog)
                             .service(subscribe)
-                            .service(subscriptions)
-                            .service(customers)
-                            .service(invoices)
-                            .service(email_list)
                             .service(user_profile)
                             .service(testimonial_images)
                             .service(learn_images)
-                            .service(catalogs)
-                            .service(upsert_coaching_catalog)
                             .service(coaching)
-                            .service(create_attributes)
                             .service(user_sessions)
-                            .service(cancel_subscription)
+                            .service(cancel_subscription),
+                    )
+                    .service(
+                        web::scope("/admin")
+                            .wrap(auth)
+                            .service(catalogs)
+                            .service(create_attributes)
+                            .service(customers)
+                            .service(email_list)
+                            .service(invoices)
                             .service(list_webhook_events)
-                            .service(listen_webhook_invoices),
+                            .service(listen_webhook_invoices)
+                            .service(subscriptions)
+                            .service(upsert_coaching_catalog)
+                            .service(upsert_subscription_catalog),
                     )
                     .service(invoice_webhook_callback)
             })
@@ -149,6 +155,9 @@ async fn main() -> std::io::Result<()> {
                     ])
                     .max_age(3600);
 
+                // todo:
+                // let admin_auth;
+
                 App::new()
                     .wrap(cors)
                     .service(
@@ -156,23 +165,26 @@ async fn main() -> std::io::Result<()> {
                             .service(articles)
                             .service(calibrations)
                             .service(testimonials)
-                            .service(upsert_subscription_catalog)
                             .service(subscribe)
-                            .service(subscriptions)
-                            .service(customers)
-                            .service(invoices)
-                            .service(email_list)
                             .service(user_profile)
                             .service(testimonial_images)
                             .service(learn_images)
-                            .service(catalogs)
-                            .service(upsert_coaching_catalog)
                             .service(coaching)
-                            .service(create_attributes)
                             .service(user_sessions)
-                            .service(cancel_subscription)
+                            .service(cancel_subscription),
+                    )
+                    .service(
+                        web::scope("/admin")
+                            .service(catalogs)
+                            .service(create_attributes)
+                            .service(customers)
+                            .service(email_list)
+                            .service(invoices)
                             .service(list_webhook_events)
-                            .service(listen_webhook_invoices),
+                            .service(listen_webhook_invoices)
+                            .service(subscriptions)
+                            .service(upsert_coaching_catalog)
+                            .service(upsert_subscription_catalog),
                     )
                     .service(invoice_webhook_callback)
             })
