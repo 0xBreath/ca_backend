@@ -9,6 +9,7 @@ pub mod client;
 pub mod coaching_package;
 pub mod webhook;
 pub mod error;
+pub mod order;
 
 pub use catalog::*;
 pub use customer::*;
@@ -20,6 +21,7 @@ pub use client::*;
 pub use coaching_package::*;
 pub use webhook::*;
 pub use error::*;
+pub use order::*;
 
 use serde::{Serialize, Deserialize};
 

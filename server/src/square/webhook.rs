@@ -11,8 +11,8 @@ impl CreateWebhookRequest {
         Self {
             idempotency_key: uuid::Uuid::new_v4().to_string(),
             subscription: WebhookSubscriptionRequestObject {
-                name: "Created Invoices Webhook".to_string(),
-                event_types: vec!["invoice.created".to_string()],
+                name: "Order Fulfillment Webhook".to_string(),
+                event_types: vec!["order.fulfillment.updated".to_string()],
                 notification_url,
                 api_version,
             },
@@ -42,7 +42,7 @@ pub struct WebhookSubscriptionResponseObject {
     pub id: String,
     pub name: String,
     pub notification_url: String,
-    pub signature_key: String,
+    pub signature_key: Option<String>,
     pub updated_at: String,
 }
 
@@ -57,4 +57,27 @@ pub struct EventMetadata {
     pub api_version_introduced: String,
     pub event_type: String,
     pub release_status: String,
+}
+
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+pub struct WebhookSubscriptionsResponse {
+    #[serde(default)]
+    pub subscriptions: Vec<WebhookSubscriptionResponseObject>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DeleteWebhookResponse {}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TestWebhookResponse {
+    pub subscription_test_result: TestWebhookResponseObject,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TestWebhookResponseObject {
+    pub id: String,
+    pub status_code: u32,
+    pub payload: serde_json::Value,
+    pub created_at: String,
+    pub updated_at: String,
 }

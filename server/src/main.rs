@@ -85,19 +85,22 @@ async fn main() -> std::io::Result<()> {
     )
     .expect("Failed to parse Environment from str");
 
+    tokio::spawn(async {
+        let client = SQUARE_CLIENT.lock().await;
+        let res = client
+            .restart_orders_webhook()
+            .await
+            .expect("Failed to create orders webhook");
+        info!("Orders webhook response: {:?}", &res);
+    });
+
     match deployment {
         Deployment::Prod => {
             HttpServer::new(|| {
                 let cors = Cors::default()
-                    .send_wildcard()
-                    .allowed_origin("http://localhost:3000")
-                    .allowed_origin("https://consciousnessarchive.com")
-                    .allowed_methods(vec!["GET", "POST"])
-                    .allowed_headers(vec![
-                        header::AUTHORIZATION,
-                        header::ACCEPT,
-                        header::CONTENT_TYPE,
-                    ])
+                    .allow_any_origin()
+                    .allow_any_method()
+                    .allow_any_header()
                     .max_age(3600);
 
                 let auth = HttpAuthentication::bearer(validator);
@@ -110,14 +113,14 @@ async fn main() -> std::io::Result<()> {
                             .wrap(auth)
                             .service(articles)
                             .service(calibrations)
-                            .service(testimonials)
-                            .service(subscribe)
-                            .service(user_profile)
-                            .service(testimonial_images)
-                            .service(learn_images)
+                            .service(cancel_subscription)
                             .service(coaching)
+                            .service(learn_images)
+                            .service(user_profile)
                             .service(user_sessions)
-                            .service(cancel_subscription),
+                            .service(subscribe)
+                            .service(testimonials)
+                            .service(testimonial_images),
                     )
                     .service(
                         web::scope("/admin")
@@ -128,7 +131,7 @@ async fn main() -> std::io::Result<()> {
                             .service(email_list)
                             .service(invoices)
                             .service(list_webhook_events)
-                            .service(listen_webhook_invoices)
+                            .service(orders)
                             .service(subscriptions)
                             .service(upsert_coaching_catalog)
                             .service(upsert_subscription_catalog),
@@ -142,7 +145,6 @@ async fn main() -> std::io::Result<()> {
         Deployment::Dev => {
             HttpServer::new(|| {
                 let cors = Cors::default()
-                    .send_wildcard()
                     .allowed_origin("http://localhost:3000")
                     .allowed_origin("https://consciousnessarchive.com")
                     .allowed_methods(vec!["GET", "POST"])
@@ -153,22 +155,20 @@ async fn main() -> std::io::Result<()> {
                     ])
                     .max_age(3600);
 
-                let admin_auth = HttpAuthentication::bearer(admin_validator);
-
                 App::new()
                     .wrap(cors)
                     .service(
                         web::scope("/api")
                             .service(articles)
                             .service(calibrations)
-                            .service(testimonials)
-                            .service(subscribe)
-                            .service(user_profile)
-                            .service(testimonial_images)
-                            .service(learn_images)
+                            .service(cancel_subscription)
                             .service(coaching)
+                            .service(learn_images)
+                            .service(user_profile)
                             .service(user_sessions)
-                            .service(cancel_subscription),
+                            .service(subscribe)
+                            .service(testimonials)
+                            .service(testimonial_images),
                     )
                     .service(
                         web::scope("/admin")
@@ -178,7 +178,7 @@ async fn main() -> std::io::Result<()> {
                             .service(email_list)
                             .service(invoices)
                             .service(list_webhook_events)
-                            .service(listen_webhook_invoices)
+                            .service(orders)
                             .service(subscriptions)
                             .service(upsert_coaching_catalog)
                             .service(upsert_subscription_catalog),
@@ -218,14 +218,16 @@ async fn invoice_webhook_callback(mut payload: web::Payload) -> Result<HttpRespo
         let chunk = chunk?;
         if (body.len() + chunk.len()) > MAX_SIZE {
             return Err(actix_web::error::ErrorBadRequest(
-                "Invoice webhook callback POST request bytes overflow",
+                "Orders webhook callback POST request bytes overflow",
             ));
         }
         body.extend_from_slice(&chunk);
     }
 
-    let data = serde_json::from_slice::<InvoiceWebhookResponse>(&body)?;
-    info!("Invoice webhook callback data: {:?}", &data);
+    // let data = serde_json::from_slice::<InvoiceWebhookResponse>(&body)?;
+    let data = serde_json::from_slice::<serde_json::Value>(&body)?;
+
+    info!("Order webhook callback: {:?}", &data);
 
     // let client = SQUARE_CLIENT.lock().await;
     // let info: UserSessions = client.get_user_sessions(buyer_email).await?;
@@ -233,6 +235,8 @@ async fn invoice_webhook_callback(mut payload: web::Payload) -> Result<HttpRespo
 
     Ok(HttpResponse::Ok().json(data))
 }
+
+// ================================== API ================================== //
 
 #[get("/learn_images")]
 async fn learn_images() -> Result<HttpResponse, Error> {
@@ -491,8 +495,6 @@ async fn testimonial_images() -> Result<HttpResponse, Error> {
     }
 }
 
-// ================================== SQUARE API ================================== //
-
 #[post("/subscribe")]
 async fn subscribe(mut payload: web::Payload) -> Result<HttpResponse, Error> {
     let deployment = Deployment::from_str(
@@ -519,7 +521,7 @@ async fn subscribe(mut payload: web::Payload) -> Result<HttpResponse, Error> {
             let res = client.subscribe_checkout(buyer_email).await?;
 
             if let SquareResponse::Success(subscribe) = res {
-                info!("Subscription checkout: {:?}", &subscribe);
+                debug!("Subscription checkout: {:?}", &subscribe);
                 Ok(HttpResponse::Ok().json(subscribe))
             } else {
                 error!("Failed to subscribe: {:?}", &res);
@@ -560,13 +562,10 @@ async fn coaching(mut payload: web::Payload) -> Result<HttpResponse, Error> {
             debug!("Coaching request: {:?}", &request);
             let client = SQUARE_CLIENT.lock().await;
 
-            let checkout = client
-                .coaching_checkout(request)
-                .await
-                .unwrap_or_else(|e| panic!("Failed to fetch coaching checkout response: {}", e));
+            let checkout = client.coaching_checkout(request).await?;
 
             if let SquareResponse::Success(checkout) = checkout {
-                info!("Coaching checkout: {:?}", &checkout);
+                debug!("Coaching checkout: {:?}", &checkout);
                 Ok(HttpResponse::Ok().json(checkout))
             } else {
                 error!(
@@ -724,9 +723,8 @@ async fn cancel_subscription(mut payload: web::Payload) -> Result<HttpResponse, 
     }
 }
 
-// ================================== ADMIN API ================================== //
+// ================================== ADMIN ================================== //
 
-// todo: admin feature enabled for local deployment
 #[get("/upsert_subscription_catalog")]
 async fn upsert_subscription_catalog() -> Result<HttpResponse, Error> {
     let client = SQUARE_CLIENT.lock().await;
@@ -734,7 +732,6 @@ async fn upsert_subscription_catalog() -> Result<HttpResponse, Error> {
     Ok(HttpResponse::Ok().json(catalog))
 }
 
-// todo: admin feature enabled for local deployment
 #[get("/upsert_coaching_catalog")]
 async fn upsert_coaching_catalog() -> Result<HttpResponse, Error> {
     let client = SQUARE_CLIENT.lock().await;
@@ -742,7 +739,6 @@ async fn upsert_coaching_catalog() -> Result<HttpResponse, Error> {
     Ok(HttpResponse::Ok().json(catalog))
 }
 
-// todo: admin feature enabled for local deployment
 #[get("/subscriptions")]
 async fn subscriptions() -> Result<HttpResponse, Error> {
     let client = SQUARE_CLIENT.lock().await;
@@ -750,7 +746,6 @@ async fn subscriptions() -> Result<HttpResponse, Error> {
     Ok(HttpResponse::Ok().json(list))
 }
 
-// todo: admin feature enabled for local deployment
 #[get("/email_list")]
 async fn email_list() -> Result<HttpResponse, Error> {
     let client = SQUARE_CLIENT.lock().await;
@@ -758,7 +753,6 @@ async fn email_list() -> Result<HttpResponse, Error> {
     Ok(HttpResponse::Ok().json(list))
 }
 
-// todo: admin feature enabled for local deployment
 #[get("/customers")]
 async fn customers() -> Result<HttpResponse, Error> {
     let client = SQUARE_CLIENT.lock().await;
@@ -766,15 +760,36 @@ async fn customers() -> Result<HttpResponse, Error> {
     Ok(HttpResponse::Ok().json(list))
 }
 
-// todo: admin feature enabled for local deployment
+#[get("/orders")]
+async fn orders() -> Result<HttpResponse, Error> {
+    let client = SQUARE_CLIENT.lock().await;
+    let list = client.list_orders().await?;
+    match list {
+        SquareResponse::Success(orders) => {
+            info!("Orders: {:?}", &orders.orders.len());
+            Ok(HttpResponse::Ok().json(orders))
+        }
+        SquareResponse::Error(e) => Err(actix_web::error::ErrorBadRequest(
+            "Failed to get Square orders",
+        )),
+    }
+}
+
 #[get("/invoices")]
 async fn invoices() -> Result<HttpResponse, Error> {
     let client = SQUARE_CLIENT.lock().await;
     let list = client.list_invoices().await?;
-    Ok(HttpResponse::Ok().json(list))
+    match list {
+        SquareResponse::Success(invoices) => {
+            info!("Invoices: {:?}", &invoices.invoices.len());
+            Ok(HttpResponse::Ok().json(invoices))
+        }
+        SquareResponse::Error(e) => Err(actix_web::error::ErrorBadRequest(
+            "Failed to get Square invoices",
+        )),
+    }
 }
 
-// todo: admin feature enabled for local deployment
 #[get("/catalogs")]
 async fn catalogs() -> Result<HttpResponse, Error> {
     let client = SQUARE_CLIENT.lock().await;
@@ -782,15 +797,6 @@ async fn catalogs() -> Result<HttpResponse, Error> {
     Ok(HttpResponse::Ok().json(list))
 }
 
-use serde::{Deserialize, Serialize};
-#[derive(Debug, Serialize, Deserialize)]
-struct CustomShit {
-    sessions: SquareResponse<CreateCustomAttributeResponse>,
-    sessions_credited: SquareResponse<CreateCustomAttributeResponse>,
-    sessions_debited: SquareResponse<CreateCustomAttributeResponse>,
-}
-
-// todo: admin feature enabled for local deployment
 #[get("/create_attributes")]
 async fn create_attributes() -> Result<HttpResponse, Error> {
     let client = SQUARE_CLIENT.lock().await;
@@ -803,12 +809,7 @@ async fn create_attributes() -> Result<HttpResponse, Error> {
     let sessions_debited = client
         .create_custom_attribute("sessions_debited".to_string())
         .await?;
-    // let res = CustomAttributeResponses {
-    //     sessions,
-    //     sessions_credited,
-    //     sessions_debited,
-    // };
-    let res = CustomShit {
+    let res = CustomAttributeResponses {
         sessions,
         sessions_credited,
         sessions_debited,
@@ -816,19 +817,9 @@ async fn create_attributes() -> Result<HttpResponse, Error> {
     Ok(HttpResponse::Ok().json(res))
 }
 
-// todo: admin feature enabled for local deployment
 #[get("/webhook_events")]
 async fn list_webhook_events() -> Result<HttpResponse, Error> {
     let client = SQUARE_CLIENT.lock().await;
     let res = client.list_available_webhook_events().await?;
-    Ok(HttpResponse::Ok().json(res))
-}
-
-// todo: admin feature enabled for local deployment
-// todo: call on server startup
-#[get("/listen_webhook_invoices")]
-async fn listen_webhook_invoices() -> Result<HttpResponse, Error> {
-    let client = SQUARE_CLIENT.lock().await;
-    let res = client.listen_to_webhook_invoices().await?;
     Ok(HttpResponse::Ok().json(res))
 }

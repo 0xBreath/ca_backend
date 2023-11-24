@@ -1,4 +1,4 @@
-use crate::square::SquareErrorResponse;
+use crate::square::{SquareErrorResponse, SquareResponse};
 use crate::Address;
 use serde::{Deserialize, Serialize};
 
@@ -177,9 +177,9 @@ pub struct CardInfo {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CustomAttributeResponses {
-    pub sessions: CreateCustomAttributeResponse,
-    pub sessions_credited: CreateCustomAttributeResponse,
-    pub sessions_debited: CreateCustomAttributeResponse,
+    pub sessions: SquareResponse<CreateCustomAttributeResponse>,
+    pub sessions_credited: SquareResponse<CreateCustomAttributeResponse>,
+    pub sessions_debited: SquareResponse<CreateCustomAttributeResponse>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

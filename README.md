@@ -103,11 +103,12 @@ Make sure `GOOGLE_APPLICATION_CREDENTIALS=./gcloud_credentials.json` is in the `
 Visit [ngrok](https://ngrok.com/) and login.
 Navigate to `Your Authtoken` page and paste this command into the terminal:
 ```shell
-ngrok config add-authtoken 2YOxQ6IwAsMHcZQYXEcld999GgG_zAf6iJZQmp3zdfdcNMZ8
+ngrok config add-authtoken <token>
 ```
 Start the server with:
 ```shell
-ngrok http 3333
+ngrok http --domain=consciousnessarchive.dev.api 3333
+
 ```
 Set the `Forwarding` address as `WEBHOOK_URL` in the `.env` file.
 

@@ -803,7 +803,7 @@ impl SquareClient {
                                 )
                             })
                             .id;
-                        info!("Coaching package id: {}", &coaching_package_id);
+                        debug!("Coaching package id: {}", &coaching_package_id);
 
                         let res = self
                             .client
@@ -848,7 +848,7 @@ impl SquareClient {
                                         .amount as f64
                                         / 100.0,
                                 };
-                                info!("Square coaching checkout info: {:?}", &checkout_info);
+                                debug!("Square coaching checkout info: {:?}", &checkout_info);
 
                                 Ok(SquareResponse::Success(checkout_info))
                             }
@@ -879,6 +879,47 @@ impl SquareClient {
             "Failed to parse GET customers response from Square",
         )
         .await
+    }
+
+    pub async fn list_orders(&self) -> Result<SquareResponse<SearchOrdersResponse>, Error> {
+        let customers_list = self.list_customers().await?;
+
+        match customers_list {
+            SquareResponse::Error(error) => Ok(SquareResponse::Error(error)),
+            SquareResponse::Success(customers_list) => {
+                let customer_ids = customers_list
+                    .customers
+                    .into_iter()
+                    .map(|customer| customer.id)
+                    .collect::<Vec<String>>();
+
+                let builder = SearchOrdersRequestBuilder {
+                    location_ids: vec![self.location_id.clone()],
+                    customer_ids: Some(customer_ids),
+                };
+
+                let endpoint = self.base_url.clone() + "v2/orders/search";
+                let res = self
+                    .client
+                    .post(endpoint)
+                    .header("Square-Version", self.version.clone())
+                    .bearer_auth(self.token.clone())
+                    .header("Content-Type", "application/json")
+                    .json(&SearchOrdersRequest::new(builder))
+                    .send()
+                    .await
+                    .map_err(|_| {
+                        actix_web::error::ErrorBadRequest("Failed to GET invoices from Square")
+                    })
+                    .unwrap();
+
+                self.handle_response::<SearchOrdersResponse>(
+                    res,
+                    "Failed to parse POST search orders response from Square",
+                )
+                .await
+            }
+        }
     }
 
     pub async fn list_invoices(&self) -> Result<SquareResponse<InvoiceListResponse>, Error> {
@@ -925,9 +966,82 @@ impl SquareClient {
         .await
     }
 
-    pub async fn listen_to_webhook_invoices(
+    pub async fn restart_orders_webhook(
         &self,
     ) -> Result<SquareResponse<CreateWebhookResponse>, Error> {
+        let webhook_list = self.list_webhooks().await?;
+        match webhook_list {
+            SquareResponse::Error(error) => Ok(SquareResponse::Error(error)),
+            SquareResponse::Success(res) => {
+                if !res.subscriptions.is_empty() {
+                    let webhook_subscription_ids = res
+                        .subscriptions
+                        .into_iter()
+                        .map(|webhook| webhook.id)
+                        .collect::<Vec<String>>();
+                    for webhook_id in webhook_subscription_ids {
+                        self.delete_webhook(webhook_id).await?;
+                    }
+                }
+                self.create_orders_webhook().await
+            }
+        }
+    }
+
+    async fn list_webhooks(&self) -> Result<SquareResponse<WebhookSubscriptionsResponse>, Error> {
+        let endpoint = self.base_url.clone() + "v2/webhooks/subscriptions";
+
+        let res = self
+            .client
+            .get(endpoint)
+            .header("Square-Version", self.version.clone())
+            .bearer_auth(self.token.clone())
+            .header("Content-Type", "application/json")
+            .send()
+            .await
+            .map_err(|_| {
+                actix_web::error::ErrorBadRequest("Failed to GET webhook subscriptions from Square")
+            })
+            .unwrap();
+
+        self.handle_response::<WebhookSubscriptionsResponse>(
+            res,
+            "Failed to parse webhook subscriptions response",
+        )
+        .await
+    }
+
+    async fn delete_webhook(
+        &self,
+        webhook_subscription_id: String,
+    ) -> Result<SquareResponse<DeleteWebhookResponse>, Error> {
+        let endpoint =
+            self.base_url.clone() + "v2/webhooks/subscriptions/" + &*webhook_subscription_id;
+        debug!("Deleting webhook: {}", &webhook_subscription_id);
+
+        let res = self
+            .client
+            .delete(endpoint)
+            .header("Square-Version", self.version.clone())
+            .bearer_auth(self.token.clone())
+            .header("Content-Type", "application/json")
+            .send()
+            .await
+            .map_err(|_| {
+                actix_web::error::ErrorBadRequest(
+                    "Failed to DELETE webhook subscription from Square",
+                )
+            })
+            .unwrap();
+
+        self.handle_response::<DeleteWebhookResponse>(
+            res,
+            "Failed to parse delete webhook response",
+        )
+        .await
+    }
+
+    async fn create_orders_webhook(&self) -> Result<SquareResponse<CreateWebhookResponse>, Error> {
         let endpoint = self.base_url.clone() + "v2/webhooks/subscriptions";
         let res = self
             .client
@@ -954,6 +1068,7 @@ impl SquareClient {
         .await
     }
 
+    // todo: get order fulfillments as well, since invoices don't seem to include quick pay orders
     // get customer email via invoices endpoint
     pub async fn email_list(&self) -> Result<SquareResponse<Vec<CustomerEmailInfo>>, Error> {
         match self.list_invoices().await? {
@@ -1003,8 +1118,11 @@ impl SquareClient {
             })
             .unwrap();
 
-        self.handle_response(res, "Failed to parse create custom attribute response")
-            .await
+        self.handle_response::<CreateCustomAttributeResponse>(
+            res,
+            "Failed to parse create custom attribute response",
+        )
+        .await
     }
 
     async fn get_customer_attribute(
@@ -1394,7 +1512,8 @@ impl SquareClient {
         }
     }
 
-    // todo: on server startup, set `sessions_credited` for each user based on invoices for coaching sessions
+    /// todo: on server startup, set `sessions_credited` for each user based on invoices for coaching sessions
+    #[allow(dead_code)]
     pub async fn load_all_customer_sessions_credited(&self) -> Result<(), Error> {
         Ok(())
     }
@@ -1403,6 +1522,14 @@ impl SquareClient {
     // listen to coaching session invoice via webhook
     // https://developer.squareup.com/reference/square/invoices-api/webhooks/invoice.payment_made
     // credit sessions to customer based on new invoice
+    #[allow(dead_code)]
+    pub async fn credit_customer_sessions(&self) -> Result<(), Error> {
+        Ok(())
+    }
 
     // todo: debit sessions
+    #[allow(dead_code)]
+    pub async fn debit_customer_sessions(&self) -> Result<(), Error> {
+        Ok(())
+    }
 }
