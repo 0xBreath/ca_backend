@@ -6,11 +6,6 @@
 
 [//]: # (# Consciousness Archive)
 
-# TODO
-- [ ] Protect routes if not a subscriber
-- [ ] Some kind of caching system for faster loading
-- [ ] Load database into Mutex<HashMap> for async access
-
 
 # Consciousness Archive Server
 Server to deliver consciousness calibrations, images, videos, audio, article/course markdown files, and more from local memory,
@@ -135,3 +130,9 @@ to set as the `SQUARE_COACHING_CATALOG_ID` in the `.env` file.
 
 ### Create Custom Attributes for Customers
 Hit `/api/create_attributes` endpoint.
+
+
+## TODO
+- [ ] API routes redact data besides the title if not subscribed
+- [ ] Some kind of caching system for faster loading
+- [ ] Load database into Mutex<HashMap> for async access
