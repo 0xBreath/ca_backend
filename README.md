@@ -6,6 +6,11 @@
 
 [//]: # (# Consciousness Archive)
 
+# TODO
+- [ ] Protect routes if not a subscriber
+- [ ] Some kind of caching system for faster loading
+- [ ] Load database into Mutex<HashMap> for async access
+
 
 # Consciousness Archive Server
 Server to deliver consciousness calibrations, images, videos, audio, article/course markdown files, and more from local memory,

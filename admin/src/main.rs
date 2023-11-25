@@ -1,16 +1,15 @@
+use anyhow::{anyhow, Error};
+use clap::{ArgEnum, Parser};
+use database::{Article, Calibration, Testimonial};
+use dotenv::dotenv;
+use log::*;
+use serde::Deserialize;
+use simplelog::{ColorChoice, Config as SimpleLogConfig, TermLogger, TerminalMode};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
-use database::{Article, Calibration, Testimonial};
-use log::*;
-use simplelog::{ColorChoice, Config as SimpleLogConfig, TermLogger, TerminalMode};
 use std::str::FromStr;
-use clap::{Parser, ArgEnum};
-use dotenv::dotenv;
-use anyhow::{anyhow, Error};
-use serde::Deserialize;
-
 
 fn init_logger() {
     TermLogger::init(
@@ -19,7 +18,7 @@ fn init_logger() {
         TerminalMode::Mixed,
         ColorChoice::Auto,
     )
-      .expect("Failed to initialize logger");
+    .expect("Failed to initialize logger");
 }
 
 #[derive(ArgEnum, Debug, Clone)]
@@ -27,7 +26,7 @@ enum FileType {
     Articles,
     Calibrations,
     Testimonials,
-    TestimonialImages
+    TestimonialImages,
 }
 
 impl FromStr for FileType {
@@ -51,8 +50,8 @@ struct ArticleRaw {
     file_name: String,
     image_url: String,
     index: u32,
+    premium: bool,
 }
-
 
 #[derive(Parser, Debug)]
 struct Args {
@@ -64,7 +63,6 @@ struct Args {
     #[clap(short)]
     f: String,
 }
-
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
@@ -78,29 +76,44 @@ async fn main() -> Result<(), Error> {
     match file_type {
         FileType::Articles => {
             // existing articles cache
-            let articles_cache = std::env::current_dir().unwrap().to_str().unwrap().to_string() + "/cache/articles.bin";
-            let mut file = File::open(&articles_cache)
-              .expect("Failed to open articles cache");
+            let articles_cache = std::env::current_dir()
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .to_string()
+                + "/cache/articles.bin";
+            let mut file = File::open(&articles_cache).expect("Failed to open articles cache");
             let mut articles_buf = Vec::new();
-            file.read_to_end(&mut articles_buf).
-              expect("Failed to read articles cache");
-
+            file.read_to_end(&mut articles_buf)
+                .expect("Failed to read articles cache");
 
             let mut new_file = File::open(path).expect("Failed to open new articles file");
             let mut new_buf = String::new();
-            new_file.read_to_string(&mut new_buf).expect("Failed to read new articles file");
-            let new_articles_raw = serde_json::from_str::<Vec<ArticleRaw>>(&new_buf).expect("Failed to deserialize new articles");
+            new_file
+                .read_to_string(&mut new_buf)
+                .expect("Failed to read new articles file");
+            let new_articles_raw = serde_json::from_str::<Vec<ArticleRaw>>(&new_buf)
+                .expect("Failed to deserialize new articles");
 
             let mut new_articles = Vec::new();
             for article in new_articles_raw.into_iter() {
-                let file_path = std::env::current_dir().unwrap().to_str().unwrap().to_string() + "/data/articles/" + &article.file_name;
-                let markdown = std::fs::read_to_string(file_path)?.trim_start_matches('\n').to_string();
+                let file_path = std::env::current_dir()
+                    .unwrap()
+                    .to_str()
+                    .unwrap()
+                    .to_string()
+                    + "/data/articles/"
+                    + &article.file_name;
+                let markdown = std::fs::read_to_string(file_path)?
+                    .trim_start_matches('\n')
+                    .to_string();
                 new_articles.push(Article {
                     title: article.title,
                     tags: article.tags,
                     data: markdown,
                     image_url: article.image_url,
                     index: article.index,
+                    premium: article.premium,
                 });
             }
 
@@ -116,10 +129,10 @@ async fn main() -> Result<(), Error> {
                         Ok(_) => info!("Successfully wrote to articles cache"),
                         Err(e) => {
                             error!("Failed to write to articles cache: {}", e);
-                            return Err(anyhow!("Failed to write to articles cache: {}", e))
-                        },
+                            return Err(anyhow!("Failed to write to articles cache: {}", e));
+                        }
                     };
-                },
+                }
                 Err(e) => {
                     // if error is Io(Kind(UnexpectedEof)), then write to file as new hashmap
                     if e.to_string().contains("unexpected end of file") {
@@ -135,21 +148,30 @@ async fn main() -> Result<(), Error> {
                     }
                 }
             }
-        },
+        }
         FileType::Calibrations => {
             // Read the contents of the calibrations cache into a Vec<u8>
-            let cache_path = std::env::current_dir().unwrap().to_str().unwrap().to_string() + "/cache/calibrations.bin";
-            let mut cache_file = File::open(&cache_path)
-              .expect("Failed to open calibrations cache");
+            let cache_path = std::env::current_dir()
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .to_string()
+                + "/cache/calibrations.bin";
+            let mut cache_file =
+                File::open(&cache_path).expect("Failed to open calibrations cache");
             let mut cache_buf = Vec::new();
-            cache_file.read_to_end(&mut cache_buf).
-              expect("Failed to read calibrations cache");
+            cache_file
+                .read_to_end(&mut cache_buf)
+                .expect("Failed to read calibrations cache");
 
             // Read the contents of the new calibrations file into a Vec<u8>
             let mut new_file = File::open(path).expect("Failed to open new calibrations file");
             let mut new_buf = String::new();
-            new_file.read_to_string(&mut new_buf).expect("Failed to read new calibrations file");
-            let new_calibrations = serde_json::from_str::<Vec<Calibration>>(&new_buf).expect("Failed to deserialize new calibrations");
+            new_file
+                .read_to_string(&mut new_buf)
+                .expect("Failed to read new calibrations file");
+            let new_calibrations = serde_json::from_str::<Vec<Calibration>>(&new_buf)
+                .expect("Failed to deserialize new calibrations");
 
             match bincode::deserialize::<HashMap<u64, Vec<u8>>>(&cache_buf) {
                 Ok(mut db_calibrations) => {
@@ -160,9 +182,10 @@ async fn main() -> Result<(), Error> {
                     }
 
                     let ser_calibrations = bincode::serialize(&db_calibrations)?;
-                    std::fs::write(cache_path, ser_calibrations).expect("Failed to write to calibrations cache");
+                    std::fs::write(cache_path, ser_calibrations)
+                        .expect("Failed to write to calibrations cache");
                     info!("Wrote calibrations to existing cache");
-                },
+                }
                 Err(e) => {
                     // if error is Io(Kind(UnexpectedEof)), then write to file as new hashmap
                     if e.to_string().contains("unexpected end of file") {
@@ -179,21 +202,30 @@ async fn main() -> Result<(), Error> {
                     }
                 }
             }
-        },
+        }
         FileType::Testimonials => {
             // Read the contents of the testimonials cache into a Vec<u8>
-            let cache_path = std::env::current_dir().unwrap().to_str().unwrap().to_string() + "/cache/testimonials.bin";
-            let mut cache_file = File::open(&cache_path)
-              .expect("Failed to open testimonials cache");
+            let cache_path = std::env::current_dir()
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .to_string()
+                + "/cache/testimonials.bin";
+            let mut cache_file =
+                File::open(&cache_path).expect("Failed to open testimonials cache");
             let mut cache_buf = Vec::new();
-            cache_file.read_to_end(&mut cache_buf).
-              expect("Failed to read testimonials cache");
+            cache_file
+                .read_to_end(&mut cache_buf)
+                .expect("Failed to read testimonials cache");
 
             // Read the contents of the new testimonials file into a Vec<u8>
             let mut new_file = File::open(path).expect("Failed to open new testimonials file");
             let mut new_buf = String::new();
-            new_file.read_to_string(&mut new_buf).expect("Failed to read new testimonials file");
-            let new_testimonials = serde_json::from_str::<Vec<Testimonial>>(&new_buf).expect("Failed to deserialize new testimonials");
+            new_file
+                .read_to_string(&mut new_buf)
+                .expect("Failed to read new testimonials file");
+            let new_testimonials = serde_json::from_str::<Vec<Testimonial>>(&new_buf)
+                .expect("Failed to deserialize new testimonials");
 
             match bincode::deserialize::<HashMap<u64, Vec<u8>>>(&cache_buf) {
                 Ok(mut db_testimonials) => {
@@ -204,9 +236,10 @@ async fn main() -> Result<(), Error> {
                     }
 
                     let ser_testimonials = bincode::serialize(&db_testimonials)?;
-                    std::fs::write(cache_path, ser_testimonials).expect("Failed to write to testimonials cache");
+                    std::fs::write(cache_path, ser_testimonials)
+                        .expect("Failed to write to testimonials cache");
                     info!("Wrote testimonials to existing cache");
-                },
+                }
                 Err(e) => {
                     // if error is Io(Kind(UnexpectedEof)), then write to file as new hashmap
                     if e.to_string().contains("unexpected end of file") {
@@ -223,30 +256,43 @@ async fn main() -> Result<(), Error> {
                     }
                 }
             }
-        },
+        }
         FileType::TestimonialImages => {
             // Rename all files in testimonial images directory to follow index in a loop
             // No storing locally, as all are kept in Google Storage
 
             // read all files from directory
-            let dir = std::fs::read_dir(PathBuf::from(&path)).expect("Failed to read testimonial images directory");
+            let dir = std::fs::read_dir(PathBuf::from(&path))
+                .expect("Failed to read testimonial images directory");
             for (index, file) in dir.enumerate() {
                 let file = file.expect("Failed to read testimonial image DirEntry");
                 let file_name = file.file_name();
 
-                let full_path = format!("{}/{}", path.clone(), file_name.to_str().expect("Failed to unwrap OsString"));
+                let full_path = format!(
+                    "{}/{}",
+                    path.clone(),
+                    file_name.to_str().expect("Failed to unwrap OsString")
+                );
                 debug!("full path: {}", full_path);
 
-                let suffix = file_name.to_str().expect("Failed to unwrap OsString").split('.').last().unwrap();
+                let suffix = file_name
+                    .to_str()
+                    .expect("Failed to unwrap OsString")
+                    .split('.')
+                    .last()
+                    .unwrap();
                 let rename = format!("{}/{}.{}", path.clone(), index, suffix);
 
                 if suffix != "DS_Store" {
                     match std::fs::rename(full_path.clone(), rename.clone()) {
                         Err(e) => {
                             error!("Failed to rename testimonial image file: {:?}", e);
-                        },
+                        }
                         Ok(_) => {
-                            info!("Renamed testimonial image file {:?} to {}", full_path, rename);
+                            info!(
+                                "Renamed testimonial image file {:?} to {}",
+                                full_path, rename
+                            );
                         }
                     }
                 } else {
