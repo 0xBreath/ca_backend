@@ -96,7 +96,7 @@ async fn main() -> std::io::Result<()> {
                     .service(upsert_coaching_catalog)
                     .service(upsert_subscription_catalog),
             )
-            .service(invoice_webhook_callback)
+            .service(order_webhook_callback)
     })
     .bind(bind_address)?
     .run()
@@ -123,7 +123,7 @@ pub fn init_logger(log_file: &PathBuf) -> std::io::Result<()> {
 }
 
 #[post("/")]
-async fn invoice_webhook_callback(mut payload: web::Payload) -> Result<HttpResponse, Error> {
+async fn order_webhook_callback(mut payload: web::Payload) -> Result<HttpResponse, Error> {
     let mut body = web::BytesMut::new();
     while let Some(chunk) = payload.next().await {
         let chunk = chunk?;
@@ -154,8 +154,7 @@ async fn learn_images() -> Result<HttpResponse, Error> {
     let config = ClientConfig::default()
         .with_auth()
         .await
-        .expect("Failed to get cloud storage client");
-
+        .expect("Failed to get Google cloud storage client");
     let client = Client::new(config);
 
     let objects = client
@@ -165,7 +164,7 @@ async fn learn_images() -> Result<HttpResponse, Error> {
             ..Default::default()
         })
         .await
-        .expect("Failed to list Google bucket objects for Learn");
+        .expect("Failed to list Google cloud bucket with learn section images");
 
     let mut images = Vec::<String>::new();
     if let Some(objects) = objects.items {
@@ -174,7 +173,6 @@ async fn learn_images() -> Result<HttpResponse, Error> {
             .map(|object| format!("{}{}", GCLOUD_STORAGE_PREFIX, object.name))
             .collect::<Vec<String>>();
     }
-
     Ok(HttpResponse::Ok().json(images))
 }
 

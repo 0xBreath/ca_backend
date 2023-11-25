@@ -133,6 +133,4 @@ Hit `/api/create_attributes` endpoint.
 
 
 ## TODO
-- [ ] API routes redact data besides the title if not subscribed
-- [ ] Some kind of caching system for faster loading
 - [ ] Load database into Mutex<HashMap> for async access
