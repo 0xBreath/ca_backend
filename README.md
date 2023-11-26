@@ -107,7 +107,7 @@ ngrok config add-authtoken <token>
 ```
 Start the server with:
 ```shell
-ngrok http --domain=consciousnessarchive.dev.api 3333
+ngrok http --domain=consciousnessarchive.ngrok.dev 3333
 
 ```
 Set the `Forwarding` address as `WEBHOOK_URL` in the `.env` file.

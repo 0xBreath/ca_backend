@@ -148,8 +148,9 @@ pub struct CustomAttributeSchemaObject {
 
 // ======================= Search Customer Response =======================
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct SearchCustomerResponse {
+    #[serde(default)]
     pub customers: Vec<CustomerResponse>,
 }
 

@@ -110,23 +110,31 @@ impl SquareClient {
             .map_err(|_| {
                 actix_web::error::ErrorBadRequest("Failed to send POST customer search to Square")
             })?;
-        debug!("POST Square search customer: {:?}", &search_res);
-        let customer_search = self
+        debug!("get_customer search response: {:?}", &search_res.status());
+        match self
             .handle_response::<SearchCustomerResponse>(
                 search_res,
-                "Failed to parse SearchCustomerResponse from Square",
+                "Failed to parse SearchCustomerResponse from Square in get_customer",
             )
-            .await?;
-
-        match customer_search {
-            SquareResponse::Error(_) => Ok(None),
-            SquareResponse::Success(customer_search) => {
-                if customer_search.customers.is_empty() {
+            .await
+        {
+            Ok(customer_search) => match customer_search {
+                SquareResponse::Error(error) => {
+                    error!("Failed to get customer: {:?}", &error);
                     Ok(None)
-                } else {
-                    let customer = customer_search.customers[0].clone();
-                    Ok(Some(customer))
                 }
+                SquareResponse::Success(res) => {
+                    if res.customers.is_empty() {
+                        Ok(None)
+                    } else {
+                        let customer = res.customers[0].clone();
+                        Ok(Some(customer))
+                    }
+                }
+            },
+            Err(e) => {
+                error!("{:?}", &e);
+                Ok(None)
             }
         }
     }
@@ -180,7 +188,10 @@ impl SquareClient {
             .map_err(|_| {
                 actix_web::error::ErrorBadRequest("Failed to send POST customer search to Square")
             })?;
-        debug!("POST Square search customer: {:?}", &search_res);
+        debug!(
+            "update_customer search response: {:?}",
+            &search_res.status()
+        );
         let customer_search = self
             .handle_response::<SearchCustomerResponse>(
                 search_res,
@@ -238,7 +249,6 @@ impl SquareClient {
                     let customer_id = res.customers[0].id.clone();
                     let update_customer_endpoint =
                         format!("{}v2/customers/{}", self.base_url.clone(), customer_id);
-                    debug!("Update customer endpoint: {}", update_customer_endpoint);
 
                     let res = self
                         .client
@@ -300,7 +310,7 @@ impl SquareClient {
                     "Failed to send POST subscription catalog upsert to Square",
                 )
             })?;
-        debug!("POST Square upsert catalog: {:?}", &catalog_res);
+        debug!("POST Square upsert catalog: {:?}", &catalog_res.status());
 
         match self
             .handle_response::<CatalogResponse>(
@@ -429,7 +439,6 @@ impl SquareClient {
                     .into_iter()
                     .find(|plan| plan.id == self.subscription_catalog_id)
                     .unwrap();
-                debug!("Square catalog: {:?}", &catalog);
                 Ok(SquareResponse::Success(catalog))
             }
         }
@@ -467,7 +476,6 @@ impl SquareClient {
                     .into_iter()
                     .find(|plan| plan.id == self.coaching_catalog_id)
                     .unwrap();
-                debug!("Square catalog: {:?}", &catalog);
                 Ok(SquareResponse::Success(catalog))
             }
         }
@@ -612,7 +620,6 @@ impl SquareClient {
                     )
                     .await?;
                 if let SquareResponse::Success(sub) = sub {
-                    debug!("Square subscription: {:?}", &sub);
                     subs.push(sub);
                 }
             }
@@ -655,13 +662,12 @@ impl SquareClient {
                     )
                     .await?
                 {
-                    SquareResponse::Error(error) => Ok(None),
+                    SquareResponse::Error(_) => Ok(None),
                     SquareResponse::Success(list) => {
                         if list.subscriptions.is_empty() {
                             Ok(None)
                         } else {
                             let sub: SubscriptionResponseObject = list.subscriptions[0].clone();
-                            debug!("Square subscription: {:?}", &sub);
                             Ok(Some(sub))
                         }
                     }
@@ -671,24 +677,27 @@ impl SquareClient {
     }
 
     pub async fn get_user_profile(&self, request: UserEmailRequest) -> Result<UserProfile, Error> {
-        let customer = self.get_customer_info(request.clone()).await?;
+        let customer = match self.get_customer_info(request.clone()).await {
+            Ok(Some(customer)) => Some(customer),
+            Ok(None) => None,
+            Err(e) => {
+                error!("Failed to get customer info: {:?}", &e);
+                None
+            }
+        };
         let sub_info = self.get_subscription_info().await?;
         let user_sub_info = self.get_user_subscription_info(request).await?;
-        match (customer, sub_info) {
-            (Some(customer), Some(sub_info)) => {
-                debug!("Customer card: {:?}", customer.cards);
-                Ok(UserProfile {
-                    customer: Some(customer),
-                    subscription_info: Some(sub_info),
-                    user_subscription: user_sub_info,
-                })
-            }
-            _ => Ok(UserProfile {
-                customer: None,
-                subscription_info: None,
-                user_subscription: None,
-            }),
-        }
+        debug!("get_user_profile, customer?: {:?}", &customer.is_some());
+        debug!("get_user_profile, sub_info?: {:?}", &sub_info.is_some());
+        debug!(
+            "get_user_profile, user_sub_info?: {:?}",
+            &user_sub_info.is_some()
+        );
+        Ok(UserProfile {
+            customer,
+            subscription_info: sub_info,
+            user_subscription: user_sub_info,
+        })
     }
 
     pub async fn subscribe_checkout(
@@ -770,87 +779,83 @@ impl SquareClient {
     pub async fn coaching_checkout(
         &self,
         request: CoachingRequest,
-    ) -> Result<SquareResponse<CheckoutInfo>, Error> {
+    ) -> Result<SquareResponse<Option<CheckoutInfo>>, Error> {
         let checkout_endpoint = self.base_url.clone() + "v2/online-checkout/payment-links";
         match self.get_coaching_catalog().await? {
             SquareResponse::Error(error) => Ok(SquareResponse::Error(error)),
             SquareResponse::Success(coaching_package_response) => {
-                let coaching_package_id = coaching_package_response
+                let coaching_package_variation = coaching_package_response
                     .item_data
                     .unwrap()
                     .variations
                     .unwrap()
                     .into_iter()
-                    .find(|v| v.item_variation_data.name == request.coaching_package.name())
-                    .unwrap_or_else(|| {
-                        panic!(
-                            "Coaching checkout, no coaching package found by name: {}",
-                            request.coaching_package.name()
-                        )
-                    })
-                    .id;
-                match self.get_location().await? {
-                    SquareResponse::Error(error) => Ok(SquareResponse::Error(error)),
-                    SquareResponse::Success(location) => {
-                        let location_id = location.id;
-                        let customer_id = self
-                            .get_customer(request.user_email.clone())
-                            .await?
-                            .unwrap_or_else(|| {
-                                panic!(
-                                    "No customer found for: {}",
-                                    request.user_email.clone().email.unwrap()
-                                )
-                            })
-                            .id;
-                        debug!("Coaching package id: {}", &coaching_package_id);
-
-                        let res = self
-                            .client
-                            .post(checkout_endpoint)
-                            .header("Square-Version", self.version.clone())
-                            .bearer_auth(self.token.clone())
-                            .header("Content-Type", "application/json")
-                            .json(&CheckoutRequest::new_coaching_package(
-                                CoachingCheckoutBuilder {
-                                    coaching_package_id,
-                                    location_id,
-                                    customer_id,
-                                    redirect_url: self.redirect_url.clone(),
-                                    buyer_email: request.user_email.email,
-                                },
-                            ))
-                            .send()
-                            .await
-                            .map_err(|_| {
-                                actix_web::error::ErrorBadRequest(
-                                    "Failed to send POST coaching checkout to Square",
-                                )
-                            })?;
-
-                        match self
-                            .handle_response::<CheckoutResponse>(
-                                res,
-                                "Failed to parse POST coaching checkout response from Square",
-                            )
-                            .await?
-                        {
+                    .find(|v| v.item_variation_data.name == request.coaching_package.name());
+                match coaching_package_variation {
+                    None => Ok(SquareResponse::Success(None)),
+                    Some(variation) => {
+                        let coaching_package_id = variation.id;
+                        match self.get_location().await? {
                             SquareResponse::Error(error) => Ok(SquareResponse::Error(error)),
-                            SquareResponse::Success(checkout) => {
-                                let checkout_info = CheckoutInfo {
-                                    url: checkout.payment_link.url,
-                                    amount: checkout
-                                        .related_resources
-                                        .orders
-                                        .get(0)
-                                        .unwrap()
-                                        .net_amount_due_money
-                                        .amount as f64
-                                        / 100.0,
-                                };
-                                debug!("Square coaching checkout info: {:?}", &checkout_info);
+                            SquareResponse::Success(location) => {
+                                let location_id = location.id;
+                                let customer =
+                                    self.get_customer(request.user_email.clone()).await?;
+                                debug!("Coaching package id: {}", &coaching_package_id);
+                                match customer {
+                                    None => Ok(SquareResponse::Success(None)),
+                                    Some(customer) => {
+                                        let customer_id = customer.id;
+                                        let res = self
+                                            .client
+                                            .post(checkout_endpoint)
+                                            .header("Square-Version", self.version.clone())
+                                            .bearer_auth(self.token.clone())
+                                            .header("Content-Type", "application/json")
+                                            .json(&CheckoutRequest::new_coaching_package(
+                                                CoachingCheckoutBuilder {
+                                                    coaching_package_id,
+                                                    location_id,
+                                                    customer_id,
+                                                    redirect_url: self.redirect_url.clone(),
+                                                    buyer_email: request.user_email.email,
+                                                },
+                                            ))
+                                            .send()
+                                            .await
+                                            .map_err(|_| {
+                                                actix_web::error::ErrorBadRequest(
+                                                  "Failed to send POST coaching checkout to Square",
+                                              )
+                                            })?;
 
-                                Ok(SquareResponse::Success(checkout_info))
+                                        match self
+                                          .handle_response::<CheckoutResponse>(
+                                              res,
+                                              "Failed to parse POST coaching checkout response from Square",
+                                          )
+                                          .await?
+                                        {
+                                            SquareResponse::Error(error) => Ok(SquareResponse::Error(error)),
+                                            SquareResponse::Success(checkout) => {
+                                                let checkout_info = CheckoutInfo {
+                                                    url: checkout.payment_link.url,
+                                                    amount: checkout
+                                                      .related_resources
+                                                      .orders
+                                                      .get(0)
+                                                      .unwrap()
+                                                      .net_amount_due_money
+                                                      .amount as f64
+                                                      / 100.0,
+                                                };
+                                                debug!("Square coaching checkout info: {:?}", &checkout_info);
+
+                                                Ok(SquareResponse::Success(Some(checkout_info)))
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -1251,174 +1256,195 @@ impl SquareClient {
     ) -> Result<SessionsInfo, Error> {
         info!("Updating customer sessions info: {:?}", info);
 
-        let customer_id = self.get_customer(request.clone()).await?.unwrap().id;
-        let sessions = self
-            .get_customer_attribute(customer_id.clone(), "sessions".to_string())
-            .await;
-        let sessions_credited = self
-            .get_customer_attribute(customer_id.clone(), "sessions_credited".to_string())
-            .await;
-        let sessions_debited = self
-            .get_customer_attribute(customer_id.clone(), "sessions_debited".to_string())
-            .await;
-
-        match (sessions, sessions_credited, sessions_debited) {
-            (
-                Some(SquareResponse::Success(sessions)),
-                Some(SquareResponse::Success(sessions_credited)),
-                Some(SquareResponse::Success(sessions_debited)),
-            ) => {
-                let old_sessions = sessions.custom_attribute.value.parse::<u8>().unwrap();
-                let new_sessions = match info.sessions {
-                    DeltaSessions::Reset => {
-                        self.update_customer_attribute(
-                            request.clone(),
-                            SessionAttribute::Sessions,
-                            0,
-                        )
-                        .await?
-                    }
-                    _ => {
-                        self.update_customer_attribute(
-                            request.clone(),
-                            SessionAttribute::Sessions,
-                            info.sessions.delta(Some(old_sessions)),
-                        )
-                        .await?
-                    }
-                };
-
-                let old_sessions_credited = sessions_credited
-                    .custom_attribute
-                    .value
-                    .parse::<u8>()
-                    .unwrap();
-                let new_sessions_credited = match info.sessions_credited {
-                    DeltaSessions::Reset => {
-                        self.update_customer_attribute(
-                            request.clone(),
-                            SessionAttribute::SessionsCredited,
-                            0,
-                        )
-                        .await?
-                    }
-                    _ => {
-                        self.update_customer_attribute(
-                            request.clone(),
-                            SessionAttribute::SessionsCredited,
-                            info.sessions_credited.delta(Some(old_sessions_credited)),
-                        )
-                        .await?
-                    }
-                };
-
-                let old_sessions_debited = sessions_debited
-                    .custom_attribute
-                    .value
-                    .parse::<u8>()
-                    .unwrap();
-                let new_sessions_debited = match info.sessions_debited {
-                    DeltaSessions::Reset => {
-                        self.update_customer_attribute(
-                            request.clone(),
-                            SessionAttribute::SessionsDebited,
-                            0,
-                        )
-                        .await?
-                    }
-                    _ => {
-                        self.update_customer_attribute(
-                            request.clone(),
-                            SessionAttribute::SessionsDebited,
-                            info.sessions_debited.delta(Some(old_sessions_debited)),
-                        )
-                        .await?
-                    }
-                };
-
-                match (new_sessions, new_sessions_credited, new_sessions_debited) {
-                    (
-                        SquareResponse::Success(new_sessions),
-                        SquareResponse::Success(new_sessions_credited),
-                        SquareResponse::Success(new_sessions_debited),
-                    ) => Ok(SessionsInfo {
-                        email: request.email.unwrap(),
-                        sessions: new_sessions.custom_attribute.value.parse::<u8>().unwrap(),
-                        sessions_credited: new_sessions_credited
-                            .custom_attribute
-                            .value
-                            .parse::<u8>()
-                            .unwrap(),
-                        sessions_debited: new_sessions_debited
-                            .custom_attribute
-                            .value
-                            .parse::<u8>()
-                            .unwrap(),
-                    }),
-                    _ => {
-                        error!(
-                            "Failed to update customer sessions info, returning old sessions info"
-                        );
-                        Ok(SessionsInfo {
-                            email: request.email.unwrap(),
-                            sessions: old_sessions,
-                            sessions_credited: old_sessions_credited,
-                            sessions_debited: old_sessions_debited,
-                        })
-                    }
-                }
+        match self.get_customer(request.clone()).await? {
+            None => {
+                warn!("No customer found in update_customer_sessions_info");
+                Ok(SessionsInfo {
+                    email: request.email.unwrap(),
+                    sessions: 0,
+                    sessions_credited: 0,
+                    sessions_debited: 0,
+                })
             }
-            _ => {
-                let new_sessions = self
-                    .update_customer_attribute(
-                        request.clone(),
-                        SessionAttribute::Sessions,
-                        info.sessions.delta(None),
-                    )
-                    .await?;
-                let new_sessions_credited = self
-                    .update_customer_attribute(
-                        request.clone(),
-                        SessionAttribute::SessionsCredited,
-                        info.sessions_credited.delta(None),
-                    )
-                    .await?;
-                let new_sessions_debited = self
-                    .update_customer_attribute(
-                        request.clone(),
-                        SessionAttribute::SessionsDebited,
-                        info.sessions_debited.delta(None),
-                    )
-                    .await?;
-                match (new_sessions, new_sessions_credited, new_sessions_debited) {
+            Some(customer) => {
+                let customer_id = customer.id;
+                let sessions = self
+                    .get_customer_attribute(customer_id.clone(), "sessions".to_string())
+                    .await;
+                let sessions_credited = self
+                    .get_customer_attribute(customer_id.clone(), "sessions_credited".to_string())
+                    .await;
+                let sessions_debited = self
+                    .get_customer_attribute(customer_id.clone(), "sessions_debited".to_string())
+                    .await;
+
+                match (sessions, sessions_credited, sessions_debited) {
                     (
-                        SquareResponse::Success(new_sessions),
-                        SquareResponse::Success(new_sessions_credited),
-                        SquareResponse::Success(new_sessions_debited),
-                    ) => Ok(SessionsInfo {
-                        email: request.email.unwrap(),
-                        sessions: new_sessions.custom_attribute.value.parse::<u8>().unwrap(),
-                        sessions_credited: new_sessions_credited
+                        Some(SquareResponse::Success(sessions)),
+                        Some(SquareResponse::Success(sessions_credited)),
+                        Some(SquareResponse::Success(sessions_debited)),
+                    ) => {
+                        let old_sessions = sessions.custom_attribute.value.parse::<u8>().unwrap();
+                        let new_sessions = match info.sessions {
+                            DeltaSessions::Reset => {
+                                self.update_customer_attribute(
+                                    request.clone(),
+                                    SessionAttribute::Sessions,
+                                    0,
+                                )
+                                .await?
+                            }
+                            _ => {
+                                self.update_customer_attribute(
+                                    request.clone(),
+                                    SessionAttribute::Sessions,
+                                    info.sessions.delta(Some(old_sessions)),
+                                )
+                                .await?
+                            }
+                        };
+
+                        let old_sessions_credited = sessions_credited
                             .custom_attribute
                             .value
                             .parse::<u8>()
-                            .unwrap(),
-                        sessions_debited: new_sessions_debited
+                            .unwrap();
+                        let new_sessions_credited = match info.sessions_credited {
+                            DeltaSessions::Reset => {
+                                self.update_customer_attribute(
+                                    request.clone(),
+                                    SessionAttribute::SessionsCredited,
+                                    0,
+                                )
+                                .await?
+                            }
+                            _ => {
+                                self.update_customer_attribute(
+                                    request.clone(),
+                                    SessionAttribute::SessionsCredited,
+                                    info.sessions_credited.delta(Some(old_sessions_credited)),
+                                )
+                                .await?
+                            }
+                        };
+
+                        let old_sessions_debited = sessions_debited
                             .custom_attribute
                             .value
                             .parse::<u8>()
-                            .unwrap(),
-                    }),
-                    _ => {
-                        error!(
+                            .unwrap();
+                        let new_sessions_debited = match info.sessions_debited {
+                            DeltaSessions::Reset => {
+                                self.update_customer_attribute(
+                                    request.clone(),
+                                    SessionAttribute::SessionsDebited,
+                                    0,
+                                )
+                                .await?
+                            }
+                            _ => {
+                                self.update_customer_attribute(
+                                    request.clone(),
+                                    SessionAttribute::SessionsDebited,
+                                    info.sessions_debited.delta(Some(old_sessions_debited)),
+                                )
+                                .await?
+                            }
+                        };
+
+                        match (new_sessions, new_sessions_credited, new_sessions_debited) {
+                            (
+                                SquareResponse::Success(new_sessions),
+                                SquareResponse::Success(new_sessions_credited),
+                                SquareResponse::Success(new_sessions_debited),
+                            ) => Ok(SessionsInfo {
+                                email: request.email.unwrap(),
+                                sessions: new_sessions
+                                    .custom_attribute
+                                    .value
+                                    .parse::<u8>()
+                                    .unwrap(),
+                                sessions_credited: new_sessions_credited
+                                    .custom_attribute
+                                    .value
+                                    .parse::<u8>()
+                                    .unwrap(),
+                                sessions_debited: new_sessions_debited
+                                    .custom_attribute
+                                    .value
+                                    .parse::<u8>()
+                                    .unwrap(),
+                            }),
+                            _ => {
+                                error!(
                             "Failed to update customer sessions info, returning old sessions info"
                         );
-                        Ok(SessionsInfo {
-                            email: request.email.unwrap(),
-                            sessions: 0,
-                            sessions_credited: 0,
-                            sessions_debited: 0,
-                        })
+                                Ok(SessionsInfo {
+                                    email: request.email.unwrap(),
+                                    sessions: old_sessions,
+                                    sessions_credited: old_sessions_credited,
+                                    sessions_debited: old_sessions_debited,
+                                })
+                            }
+                        }
+                    }
+                    _ => {
+                        let new_sessions = self
+                            .update_customer_attribute(
+                                request.clone(),
+                                SessionAttribute::Sessions,
+                                info.sessions.delta(None),
+                            )
+                            .await?;
+                        let new_sessions_credited = self
+                            .update_customer_attribute(
+                                request.clone(),
+                                SessionAttribute::SessionsCredited,
+                                info.sessions_credited.delta(None),
+                            )
+                            .await?;
+                        let new_sessions_debited = self
+                            .update_customer_attribute(
+                                request.clone(),
+                                SessionAttribute::SessionsDebited,
+                                info.sessions_debited.delta(None),
+                            )
+                            .await?;
+                        match (new_sessions, new_sessions_credited, new_sessions_debited) {
+                            (
+                                SquareResponse::Success(new_sessions),
+                                SquareResponse::Success(new_sessions_credited),
+                                SquareResponse::Success(new_sessions_debited),
+                            ) => Ok(SessionsInfo {
+                                email: request.email.unwrap(),
+                                sessions: new_sessions
+                                    .custom_attribute
+                                    .value
+                                    .parse::<u8>()
+                                    .unwrap(),
+                                sessions_credited: new_sessions_credited
+                                    .custom_attribute
+                                    .value
+                                    .parse::<u8>()
+                                    .unwrap(),
+                                sessions_debited: new_sessions_debited
+                                    .custom_attribute
+                                    .value
+                                    .parse::<u8>()
+                                    .unwrap(),
+                            }),
+                            _ => {
+                                error!(
+                            "Failed to update customer sessions info, returning old sessions info"
+                        );
+                                Ok(SessionsInfo {
+                                    email: request.email.unwrap(),
+                                    sessions: 0,
+                                    sessions_credited: 0,
+                                    sessions_debited: 0,
+                                })
+                            }
+                        }
                     }
                 }
             }

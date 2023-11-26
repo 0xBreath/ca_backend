@@ -60,6 +60,7 @@ async fn main() -> std::io::Result<()> {
         let cors = Cors::default()
             .allowed_origin("http://localhost:3000")
             .allowed_origin("https://consciousnessarchive.com")
+            .allowed_origin("https://drew.ngrok-free.app")
             .allow_any_method()
             .allow_any_header()
             .max_age(3600);
@@ -97,6 +98,7 @@ async fn main() -> std::io::Result<()> {
                     .service(upsert_subscription_catalog),
             )
             .service(order_webhook_callback)
+            .service(test)
     })
     .bind(bind_address)?
     .run()
@@ -120,6 +122,11 @@ pub fn init_logger(log_file: &PathBuf) -> std::io::Result<()> {
         ),
     ])
     .map_err(|_| std::io::Error::new(std::io::ErrorKind::Other, "Failed to initialize logger"))
+}
+
+#[get("/")]
+async fn test() -> Result<HttpResponse, Error> {
+    Ok(HttpResponse::Ok().body("Welcome to Consciousness Archive! We hope you brought cookies."))
 }
 
 #[post("/")]
@@ -386,7 +393,7 @@ async fn user_profile(mut payload: web::Payload) -> Result<HttpResponse, Error> 
     let buyer_email = serde_json::from_slice::<UserEmailRequest>(&body)?;
     debug!("User subscription request email: {:?}", &buyer_email);
     let client = SQUARE_CLIENT.lock().await;
-    let info: UserProfile = client.get_user_profile(buyer_email).await?;
+    let info = client.get_user_profile(buyer_email).await?;
     debug!("Get user subscription info: {:?}", &info);
     Ok(HttpResponse::Ok().json(info))
 }
