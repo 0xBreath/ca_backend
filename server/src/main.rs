@@ -58,11 +58,11 @@ async fn main() -> std::io::Result<()> {
 
     HttpServer::new(|| {
         let cors = Cors::default()
-            .allow_any_origin()
+            .allowed_origin("http://localhost:3000")
+            .allowed_origin("https://consciousnessarchive.com")
             .allow_any_method()
             .allow_any_header()
             .max_age(3600);
-
         let auth = HttpAuthentication::bearer(validator);
         let admin_auth = HttpAuthentication::bearer(admin_validator);
 
