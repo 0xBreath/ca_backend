@@ -108,7 +108,6 @@ ngrok config add-authtoken <token>
 Start the server with:
 ```shell
 ngrok http --domain=consciousnessarchive.ngrok.dev 3333
-
 ```
 Set the `Forwarding` address as `WEBHOOK_URL` in the `.env` file.
 
@@ -131,6 +130,5 @@ to set as the `SQUARE_COACHING_CATALOG_ID` in the `.env` file.
 ### Create Custom Attributes for Customers
 Hit `/api/create_attributes` endpoint.
 
-
-## TODO
-- [ ] Load database into Mutex<HashMap> for async access
+# TODO
+Create new coaching catalog with updated prices in env
