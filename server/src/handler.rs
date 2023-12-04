@@ -88,7 +88,6 @@ impl<'a> ServerHandler<'a> {
                 .expect("Failed to deserialize article");
 
             let full_path = format!("{}{}", GCLOUD_STORAGE_PREFIX, article.image_url);
-            debug!("article path: {}", full_path);
 
             article.image_url = full_path;
             articles.push(article);
@@ -120,7 +119,6 @@ impl<'a> ServerHandler<'a> {
                 .expect("Failed to deserialize calibration");
 
             let full_path = format!("{}{}", GCLOUD_STORAGE_PREFIX, calibration.image_url);
-            debug!("calibration path: {}", full_path);
 
             calibration.image_url = full_path;
             calibrations.push(calibration);
@@ -269,12 +267,18 @@ impl<'a> ServerHandler<'a> {
             body.extend_from_slice(&chunk);
         }
         let user_email = serde_json::from_slice::<UserEmailRequest>(&body)?;
+        let email = user_email.email.clone();
 
         let learn_images = Self::handle_learn_images().await?;
+        debug!("Fetched learn images");
         let articles = Self::handle_articles()?;
+        debug!("Fetched articles");
         let calibrations = Self::handle_calibrations()?;
+        debug!("Fetched calibrations");
         let testimonials = Self::handle_testimonials()?;
+        debug!("Fetched testimonials");
         let testimonial_images = Self::handle_testimonial_images().await?;
+        debug!("Fetched testimonial images");
         let subscribe_checkout = match self.client.subscribe_checkout(user_email.clone()).await? {
             SquareResponse::Success(subscribe) => subscribe,
             SquareResponse::Error(err) => {
@@ -288,9 +292,12 @@ impl<'a> ServerHandler<'a> {
                 ));
             }
         };
+        debug!("Fetched subscribe checkout");
         let user_profile = self.client.get_user_profile(user_email).await?;
+        debug!("Fetched user profile");
         // cancel subscription is the only endpoint that isn't loaded up front
 
+        info!("Loading state for {}", email);
         Ok(LoadState {
             learn_images,
             articles,

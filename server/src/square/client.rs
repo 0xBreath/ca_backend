@@ -66,11 +66,8 @@ impl SquareClient {
         &self,
         request: UserEmailRequest,
     ) -> Result<Option<CustomerResponse>, Error> {
-        if request.email.is_none() {
-            return Ok(None);
-        }
         let search_customer_endpoint = self.base_url.clone() + "v2/customers/search";
-        let query = SearchCustomerRequest::new(request.clone().email.unwrap()).to_value()?;
+        let query = SearchCustomerRequest::new(request.clone().email).to_value()?;
         let search_res = self
             .client
             .post(search_customer_endpoint)
@@ -805,7 +802,7 @@ impl SquareClient {
                 let charged_through_day = date_parts[2].parse::<u8>().unwrap();
 
                 let info = CanceledSubscriptionInfo {
-                    email: request.email.unwrap(),
+                    email: request.email,
                     charged_through_year,
                     charged_through_month,
                     charged_through_day,

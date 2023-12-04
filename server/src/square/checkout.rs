@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserEmailRequest {
-    pub email: Option<String>,
+    pub email: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -20,7 +20,7 @@ pub struct SubscriptionCheckoutBuilder {
     pub location_id: String,
     pub subscription_plan_id: String,
     pub redirect_url: String,
-    pub buyer_email: Option<String>,
+    pub buyer_email: String,
 }
 
 pub struct CoachingCheckoutBuilder {
@@ -56,7 +56,7 @@ impl CheckoutRequest {
                 location_id: request.location_id,
             }),
             pre_populated_data: Some(PrePopulatedData {
-                buyer_email: request.buyer_email,
+                buyer_email: Some(request.buyer_email),
                 ..Default::default()
             }),
             checkout_options: Some(CheckoutOptions {

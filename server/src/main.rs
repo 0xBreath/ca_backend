@@ -121,6 +121,7 @@ async fn test() -> Result<HttpResponse, Error> {
 
 #[post("/load_state")]
 async fn load_state(payload: web::Payload) -> Result<HttpResponse, Error> {
+    debug!("Loading state...");
     let client = SQUARE_CLIENT.lock().await;
     let handler = ServerHandler::new(client);
     let res = handler.load_state(payload).await?;
