@@ -68,7 +68,8 @@ async fn main() -> std::io::Result<()> {
                     .service(articles)
                     .service(calibrations)
                     .service(cancel_subscription)
-                    .service(learn_images)
+                    .service(content_type_images)
+                    .service(category_images)
                     .service(user_profile)
                     .service(subscribe)
                     .service(testimonials)
@@ -129,8 +130,14 @@ async fn load_state(payload: web::Payload) -> Result<HttpResponse, Error> {
 }
 
 #[get("/content_type_images")]
-async fn learn_images() -> Result<HttpResponse, Error> {
-    let images = ServerHandler::handle_content_type_images().await?;
+async fn content_type_images() -> Result<HttpResponse, Error> {
+    let images = ServerHandler::handle_content_type_images()?;
+    Ok(HttpResponse::Ok().json(images))
+}
+
+#[get("/category_images")]
+async fn category_images() -> Result<HttpResponse, Error> {
+    let images = ServerHandler::handle_category_images()?;
     Ok(HttpResponse::Ok().json(images))
 }
 
@@ -154,7 +161,7 @@ async fn testimonials() -> Result<HttpResponse, Error> {
 
 #[get("/testimonial_images")]
 async fn testimonial_images() -> Result<HttpResponse, Error> {
-    let images = ServerHandler::handle_testimonial_images().await?;
+    let images = ServerHandler::handle_testimonial_images()?;
     Ok(HttpResponse::Ok().json(images))
 }
 

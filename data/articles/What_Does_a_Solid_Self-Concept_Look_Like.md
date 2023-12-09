@@ -1,4 +1,4 @@
-# A Solid Self-Concept Looks Like This
+# What Does a Solid Self-Concept Look Like?
 
 Here’s a great illustration of the difference between a solid self\-concept and a weak one.
 

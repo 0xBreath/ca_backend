@@ -5,8 +5,6 @@ use crate::square::{
 use actix_web::{web, Result};
 use database::{Article, Calibration, Testimonial};
 use futures::StreamExt;
-use google_cloud_storage::client::{Client, ClientConfig};
-use google_cloud_storage::http::objects::list::ListObjectsRequest;
 use log::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -15,12 +13,11 @@ use std::io::Read;
 use tokio::sync::MutexGuard;
 
 const MAX_SIZE: usize = 262_144; // max payload size is 256k
-pub const GCLOUD_BUCKET: &str = "consciousness-archive";
-pub const GCLOUD_STORAGE_PREFIX: &str = "https://storage.googleapis.com/consciousness-archive/";
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct LoadState {
     pub content_type_images: Vec<String>,
+    pub category_images: Vec<String>,
     pub articles: Vec<Article>,
     pub calibrations: Vec<Calibration>,
     pub testimonials: Vec<Testimonial>,
@@ -38,28 +35,58 @@ impl<'a> ServerHandler<'a> {
         ServerHandler { client }
     }
 
-    pub async fn handle_content_type_images() -> Result<Vec<String>> {
-        let config = ClientConfig::default()
-            .with_auth()
-            .await
-            .expect("Failed to get Google cloud storage client");
-        let client = Client::new(config);
+    pub fn handle_content_type_images() -> Result<Vec<String>> {
+        let cache_path = std::env::current_dir()
+          .unwrap()
+          .to_str()
+          .unwrap()
+          .to_string()
+          + "/cache/content_type_images.bin";
 
-        let objects = client
-            .list_objects(&ListObjectsRequest {
-                bucket: GCLOUD_BUCKET.to_string(),
-                prefix: Some("images/content_types".to_string()),
-                ..Default::default()
-            })
-            .await
-            .expect("Failed to list Google cloud bucket with learn section images");
+        let mut cache_file = File::open(&cache_path).expect("Failed to open content type images \
+        cache");
+        // Read the contents into a Vec<u8>
+        let mut cache_buf = Vec::new();
+        cache_file
+          .read_to_end(&mut cache_buf)
+          .expect("Failed to read content type images cache");
 
-        let mut images = Vec::<String>::new();
-        if let Some(objects) = objects.items {
-            images = objects
-                .into_iter()
-                .map(|object| format!("{}{}", GCLOUD_STORAGE_PREFIX, object.name))
-                .collect::<Vec<String>>();
+        let mut db_images = bincode::deserialize::<HashMap<u64, Vec<u8>>>(&cache_buf)
+          .expect("Failed to read content type images cache");
+        let mut images = Vec::new();
+
+        for (_, db_image) in db_images.drain() {
+            let image = bincode::deserialize::<String>(&db_image)
+              .expect("Failed to deserialize content type image");
+            images.push(image);
+        }
+        Ok(images)
+    }
+
+    pub fn handle_category_images() -> Result<Vec<String>> {
+        let cache_path = std::env::current_dir()
+          .unwrap()
+          .to_str()
+          .unwrap()
+          .to_string()
+          + "/cache/category_images.bin";
+
+        let mut cache_file = File::open(&cache_path).expect("Failed to open category images \
+        cache");
+        // Read the contents into a Vec<u8>
+        let mut cache_buf = Vec::new();
+        cache_file
+          .read_to_end(&mut cache_buf)
+          .expect("Failed to read category images cache");
+
+        let mut db_images = bincode::deserialize::<HashMap<u64, Vec<u8>>>(&cache_buf)
+          .expect("Failed to read category images cache");
+        let mut images = Vec::new();
+
+        for (_, db_image) in db_images.drain() {
+            let image = bincode::deserialize::<String>(&db_image)
+              .expect("Failed to deserialize category image");
+            images.push(image);
         }
         Ok(images)
     }
@@ -84,12 +111,8 @@ impl<'a> ServerHandler<'a> {
         let mut articles = Vec::new();
         // for each DbArticle in the hashmap, deserialize into Article and collect to vector
         for (_, db_article) in db_articles.drain() {
-            let mut article = bincode::deserialize::<Article>(&db_article)
+            let article = bincode::deserialize::<Article>(&db_article)
                 .expect("Failed to deserialize article");
-
-            let full_path = format!("{}{}", GCLOUD_STORAGE_PREFIX, article.image_url);
-
-            article.image_url = full_path;
             articles.push(article);
         }
         Ok(articles)
@@ -115,12 +138,8 @@ impl<'a> ServerHandler<'a> {
         let mut calibrations = Vec::new();
         // for each DbCalibration in the hashmap, deserialize into Calibration and collect to vector
         for (_, db_calibration) in db_calibrations.drain() {
-            let mut calibration = bincode::deserialize::<Calibration>(&db_calibration)
+            let calibration = bincode::deserialize::<Calibration>(&db_calibration)
                 .expect("Failed to deserialize calibration");
-
-            let full_path = format!("{}{}", GCLOUD_STORAGE_PREFIX, calibration.image_url);
-
-            calibration.image_url = full_path;
             calibrations.push(calibration);
         }
         Ok(calibrations)
@@ -146,40 +165,34 @@ impl<'a> ServerHandler<'a> {
         let mut testimonials = Vec::new();
         // for each DbCalibration in the hashmap, deserialize into Calibration and collect to vector
         for (_, db_testimonial) in db_testimonials.drain() {
-            let mut testimonial = bincode::deserialize::<Testimonial>(&db_testimonial)
+            let testimonial = bincode::deserialize::<Testimonial>(&db_testimonial)
                 .expect("Failed to deserialize testimonial");
-
-            let full_path = format!("{}{}", GCLOUD_STORAGE_PREFIX, testimonial.image_url);
-            testimonial.image_url = full_path;
-
             testimonials.push(testimonial);
         }
         Ok(testimonials)
     }
 
-    pub async fn handle_testimonial_images() -> Result<Vec<String>> {
-        let config = ClientConfig::default()
-            .with_auth()
-            .await
-            .expect("Failed to get cloud storage client");
+    pub fn handle_testimonial_images() -> Result<Vec<String>> {
+        let cache_path = std::env::current_dir()
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_string()
+            + "/cache/testimonial_images.bin";
 
-        let client = Client::new(config);
+        let mut cache_file = File::open(&cache_path)?;
+        // Read the contents into a Vec<u8>
+        let mut cache_buf = Vec::new();
+        cache_file.read_to_end(&mut cache_buf)?;
 
-        let objects = client
-            .list_objects(&ListObjectsRequest {
-                bucket: GCLOUD_BUCKET.to_string(),
-                prefix: Some("images/testimonials".to_string()),
-                ..Default::default()
-            })
-            .await
-            .expect("Failed to list Google bucket objects for Testimonials");
-
-        let mut images = Vec::<String>::new();
-        if let Some(objects) = objects.items {
-            images = objects
-                .into_iter()
-                .map(|object| format!("{}{}", GCLOUD_STORAGE_PREFIX, object.name))
-                .collect::<Vec<String>>();
+        let mut db_images = bincode::deserialize::<HashMap<u64, Vec<u8>>>(&cache_buf)
+            .expect("Failed to read testimonial images cache");
+        let mut images = Vec::new();
+        // for each DbArticle in the hashmap, deserialize into Article and collect to vector
+        for (_, db_image) in db_images.drain() {
+            let image = bincode::deserialize::<String>(&db_image)
+                .expect("Failed to deserialize testimonial image");
+            images.push(image);
         }
         Ok(images)
     }
@@ -269,15 +282,17 @@ impl<'a> ServerHandler<'a> {
         let user_email = serde_json::from_slice::<UserEmailRequest>(&body)?;
         let email = user_email.email.clone();
 
-        let content_type_images = Self::handle_content_type_images().await?;
+        let content_type_images = Self::handle_content_type_images()?;
         info!("Fetch content type images");
+        let category_images = Self::handle_category_images()?;
+        info!("Fetched category images");
         let articles = Self::handle_articles()?;
         info!("Fetched articles");
         let calibrations = Self::handle_calibrations()?;
         info!("Fetched calibrations");
         let testimonials = Self::handle_testimonials()?;
         info!("Fetched testimonials");
-        let testimonial_images = Self::handle_testimonial_images().await?;
+        let testimonial_images = Self::handle_testimonial_images()?;
         info!("Fetched testimonial images");
         let subscribe_checkout = match self.client.subscribe_checkout(user_email.clone()).await? {
             SquareResponse::Success(subscribe) => subscribe,
@@ -300,6 +315,7 @@ impl<'a> ServerHandler<'a> {
         info!("Loaded state for {}", email);
         Ok(LoadState {
             content_type_images,
+            category_images,
             articles,
             calibrations,
             testimonials,

@@ -13,5 +13,14 @@ script = "rm -rf cache/calibrations.bin && touch cache/calibrations.bin && chmod
 [tasks.upsert_testimonials]
 script = "rm -rf cache/testimonials.bin && touch cache/testimonials.bin && chmod +x scripts/upsert_testimonials.sh && scripts/upsert_testimonials.sh"
 
+[tasks.upsert_testimonial_images]
+script = "rm -rf cache/testimonial_images.bin && touch cache/testimonial_images.bin && chmod +x scripts/upsert_testimonial_images.sh && scripts/upsert_testimonial_images.sh"
+
+[tasks.upsert_category_images]
+script = "rm -rf cache/category_images.bin && touch cache/category_images.bin && chmod +x scripts/upsert_category_images.sh && scripts/upsert_category_images.sh"
+
+[tasks.upsert_content_type_images]
+script = "rm -rf cache/content_type_images.bin && touch cache/content_type_images.bin && chmod +x scripts/upsert_content_type_images.sh && scripts/upsert_content_type_images.sh"
+
 [tasks.reset_database]
-dependencies = ["upsert_articles", "upsert_calibrations", "upsert_testimonials"]
+dependencies = ["upsert_articles", "upsert_calibrations", "upsert_testimonials", "upsert_testimonial_images", "upsert_category_images", "upsert_content_type_images"]

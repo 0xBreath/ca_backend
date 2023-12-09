@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Error};
 use clap::{ArgEnum, Parser};
-use database::{Article, Calibration, Testimonial};
+use database::{Article, Calibration, MessageHasher, MessageHasherTrait, Testimonial};
 use dotenv::dotenv;
 use log::*;
 use serde::Deserialize;
@@ -10,6 +10,8 @@ use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
 use std::str::FromStr;
+
+pub const GCLOUD_STORAGE_PREFIX: &str = "https://storage.googleapis.com/consciousness-archive/";
 
 fn init_logger() {
     TermLogger::init(
@@ -27,6 +29,8 @@ enum FileType {
     Calibrations,
     Testimonials,
     TestimonialImages,
+    CategoryImages,
+    ContentTypeImages,
 }
 
 impl FromStr for FileType {
@@ -38,6 +42,8 @@ impl FromStr for FileType {
             "calibrations" => Ok(FileType::Calibrations),
             "testimonials" => Ok(FileType::Testimonials),
             "testimonial_images" => Ok(FileType::TestimonialImages),
+            "content_type_images" => Ok(FileType::ContentTypeImages),
+            "category_images" => Ok(FileType::CategoryImages),
             _ => Err(format!("{} is not a valid file type", s)),
         }
     }
@@ -104,6 +110,8 @@ async fn main() -> Result<(), Error> {
                     .to_string()
                     + "/data/articles/"
                     + &article.file_name;
+                info!("Article file path: {}", &file_path);
+
                 let markdown = std::fs::read_to_string(file_path)?
                     .trim_start_matches('\n')
                     .to_string();
@@ -117,37 +125,26 @@ async fn main() -> Result<(), Error> {
                 });
             }
 
-            match bincode::deserialize::<HashMap<u64, Vec<u8>>>(&articles_buf) {
-                Ok(mut db_articles) => {
-                    for new_article in new_articles.into_iter() {
-                        let bytes = new_article.ser()?;
-                        db_articles.insert(bytes.key, bytes.value);
-                    }
-
-                    let ser_articles = bincode::serialize(&db_articles)?;
-                    match std::fs::write(articles_cache, ser_articles) {
-                        Ok(_) => info!("Successfully wrote to articles cache"),
-                        Err(e) => {
-                            error!("Failed to write to articles cache: {}", e);
-                            return Err(anyhow!("Failed to write to articles cache: {}", e));
-                        }
-                    };
-                }
+            let mut db_articles = match bincode::deserialize::<HashMap<u64, Vec<u8>>>(&articles_buf)
+            {
+                Ok(db_articles) => db_articles,
                 Err(e) => {
                     // if error is Io(Kind(UnexpectedEof)), then write to file as new hashmap
                     if e.to_string().contains("unexpected end of file") {
-                        let mut db_articles = HashMap::new();
-                        for new_article in new_articles.into_iter() {
-                            let bytes = new_article.ser()?;
-                            db_articles.insert(bytes.key, bytes.value);
-                        }
-                        let ser_articles = bincode::serialize(&db_articles)?;
-                        std::fs::write(articles_cache, ser_articles)?;
+                        HashMap::new()
                     } else {
                         return Err(anyhow!("Failed to deserialize articles cache: {}", e));
                     }
                 }
+            };
+
+            for new_article in new_articles.into_iter() {
+                let bytes = new_article.ser()?;
+                db_articles.insert(bytes.key, bytes.value);
             }
+            let ser_articles = bincode::serialize(&db_articles)?;
+            std::fs::write(articles_cache, ser_articles)?;
+            info!("Wrote articles to existing cache");
         }
         FileType::Calibrations => {
             // Read the contents of the calibrations cache into a Vec<u8>
@@ -173,35 +170,27 @@ async fn main() -> Result<(), Error> {
             let new_calibrations = serde_json::from_str::<Vec<Calibration>>(&new_buf)
                 .expect("Failed to deserialize new calibrations");
 
-            match bincode::deserialize::<HashMap<u64, Vec<u8>>>(&cache_buf) {
-                Ok(mut db_calibrations) => {
-                    // append new calibration to cache
-                    for new_calibration in new_calibrations.into_iter() {
-                        let bytes = new_calibration.ser()?;
-                        db_calibrations.insert(bytes.key, bytes.value);
-                    }
-
-                    let ser_calibrations = bincode::serialize(&db_calibrations)?;
-                    std::fs::write(cache_path, ser_calibrations)
-                        .expect("Failed to write to calibrations cache");
-                    info!("Wrote calibrations to existing cache");
-                }
-                Err(e) => {
-                    // if error is Io(Kind(UnexpectedEof)), then write to file as new hashmap
-                    if e.to_string().contains("unexpected end of file") {
-                        let mut db_calibrations = HashMap::new();
-                        for new_calibration in new_calibrations.into_iter() {
-                            let bytes = new_calibration.ser()?;
-                            db_calibrations.insert(bytes.key, bytes.value);
+            let mut db_calibrations =
+                match bincode::deserialize::<HashMap<u64, Vec<u8>>>(&cache_buf) {
+                    Ok(db_calibrations) => db_calibrations,
+                    Err(e) => {
+                        // if error is Io(Kind(UnexpectedEof)), then write to file as new hashmap
+                        if e.to_string().contains("unexpected end of file") {
+                            HashMap::new()
+                        } else {
+                            return Err(anyhow!("Failed to deserialize calibrations cache: {}", e));
                         }
-                        let ser_calibrations = bincode::serialize(&db_calibrations)?;
-                        std::fs::write(cache_path, ser_calibrations)?;
-                        info!("Wrote calibrations to new cache");
-                    } else {
-                        return Err(anyhow!("Failed to deserialize calibrations cache: {}", e));
                     }
-                }
+                };
+            // append new calibration to cache
+            for new_calibration in new_calibrations.into_iter() {
+                let bytes = new_calibration.ser()?;
+                db_calibrations.insert(bytes.key, bytes.value);
             }
+
+            let ser_calibrations = bincode::serialize(&db_calibrations)?;
+            std::fs::write(cache_path, ser_calibrations)?;
+            info!("Wrote calibrations to existing cache");
         }
         FileType::Testimonials => {
             // Read the contents of the testimonials cache into a Vec<u8>
@@ -227,78 +216,309 @@ async fn main() -> Result<(), Error> {
             let new_testimonials = serde_json::from_str::<Vec<Testimonial>>(&new_buf)
                 .expect("Failed to deserialize new testimonials");
 
-            match bincode::deserialize::<HashMap<u64, Vec<u8>>>(&cache_buf) {
-                Ok(mut db_testimonials) => {
-                    // append new calibration to cache
-                    for new_testimonial in new_testimonials.into_iter() {
-                        let bytes = new_testimonial.ser()?;
-                        db_testimonials.insert(bytes.key, bytes.value);
-                    }
-
-                    let ser_testimonials = bincode::serialize(&db_testimonials)?;
-                    std::fs::write(cache_path, ser_testimonials)
-                        .expect("Failed to write to testimonials cache");
-                    info!("Wrote testimonials to existing cache");
-                }
-                Err(e) => {
-                    // if error is Io(Kind(UnexpectedEof)), then write to file as new hashmap
-                    if e.to_string().contains("unexpected end of file") {
-                        let mut db_testimonials = HashMap::new();
-                        for new_testimonial in new_testimonials.into_iter() {
-                            let bytes = new_testimonial.ser()?;
-                            db_testimonials.insert(bytes.key, bytes.value);
+            let mut db_testimonials =
+                match bincode::deserialize::<HashMap<u64, Vec<u8>>>(&cache_buf) {
+                    Ok(db_testimonials) => db_testimonials,
+                    Err(e) => {
+                        // if error is Io(Kind(UnexpectedEof)), then write to file as new hashmap
+                        if e.to_string().contains("unexpected end of file") {
+                            HashMap::new()
+                        } else {
+                            return Err(anyhow!("Failed to deserialize testimonials cache: {}", e));
                         }
-                        let ser_testimonials = bincode::serialize(&db_testimonials)?;
-                        std::fs::write(cache_path, ser_testimonials)?;
-                        info!("Wrote testimonials to new cache");
-                    } else {
-                        return Err(anyhow!("Failed to deserialize testimonials cache: {}", e));
                     }
-                }
+                };
+            for new_testimonial in new_testimonials.into_iter() {
+                let bytes = new_testimonial.ser()?;
+                db_testimonials.insert(bytes.key, bytes.value);
             }
+            let ser_testimonials = bincode::serialize(&db_testimonials)?;
+            std::fs::write(cache_path, ser_testimonials)?;
+            info!("Wrote testimonials to new cache");
         }
         FileType::TestimonialImages => {
-            // Rename all files in testimonial images directory to follow index in a loop
-            // No storing locally, as all are kept in Google Storage
-
             // read all files from directory
             let dir = std::fs::read_dir(PathBuf::from(&path))
                 .expect("Failed to read testimonial images directory");
-            for (index, file) in dir.enumerate() {
+
+            // read directory after renaming and create JSON for
+            // data/testimonial_images/testimonial_images.json
+            let mut testimonial_images = Vec::<String>::new();
+
+            for file in dir {
                 let file = file.expect("Failed to read testimonial image DirEntry");
-                let file_name = file.file_name();
+                let file_name_os = file.file_name();
 
-                let full_path = format!(
-                    "{}/{}",
-                    path.clone(),
-                    file_name.to_str().expect("Failed to unwrap OsString")
-                );
-                debug!("full path: {}", full_path);
+                let file_name = file_name_os.to_str().unwrap().to_string();
 
-                let suffix = file_name
-                    .to_str()
-                    .expect("Failed to unwrap OsString")
-                    .split('.')
-                    .last()
-                    .unwrap();
-                let rename = format!("{}/{}.{}", path.clone(), index, suffix);
+                if file_name == ".DS_Store" {
+                    continue;
+                };
 
-                if suffix != "DS_Store" {
-                    match std::fs::rename(full_path.clone(), rename.clone()) {
-                        Err(e) => {
-                            error!("Failed to rename testimonial image file: {:?}", e);
-                        }
-                        Ok(_) => {
-                            info!(
-                                "Renamed testimonial image file {:?} to {}",
-                                full_path, rename
-                            );
-                        }
-                    }
+                // check if name contains a space, if so concat with -
+                let file_name = if file_name.contains(' ') {
+                    file_name.replace(' ', "-")
                 } else {
-                    warn!("Skipping DS_Store file");
+                    file_name
+                };
+
+                debug!("File name: {:?}", file_name);
+                let gcloud_url = format!(
+                    "{}images/testimonial_images/{}",
+                    GCLOUD_STORAGE_PREFIX, file_name
+                );
+                info!("Testimonial image: {}", gcloud_url);
+                testimonial_images.push(gcloud_url)
+            }
+
+            // write testimonial_images.json to data/testimonial_images/testimonial_images.json
+            let testimonial_images_json = serde_json::to_string(&testimonial_images)?;
+
+            let database = std::env::current_dir()
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .to_string()
+                + "/data/testimonial_images";
+
+            let testimonial_images_path = format!("{}/testimonial_images.json", database);
+            match std::fs::write(testimonial_images_path, testimonial_images_json) {
+                Ok(_) => {
+                    info!("Successfully wrote testimonial_images.json");
+                }
+                Err(e) => {
+                    error!("Failed to write testimonial_images.json: {}", e);
                 }
             }
+
+            // Read the contents of the testimonials cache into a Vec<u8>
+            let cache_path = std::env::current_dir()
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .to_string()
+                + "/cache/testimonial_images.bin";
+            let mut cache_file =
+                File::open(&cache_path).expect("Failed to open testimonials cache");
+            let mut cache_buf = Vec::new();
+            cache_file
+                .read_to_end(&mut cache_buf)
+                .expect("Failed to read testimonials cache");
+
+            let mut db_testimonial_images =
+                match bincode::deserialize::<HashMap<u64, Vec<u8>>>(&cache_buf) {
+                    Ok(db_testimonial_images) => db_testimonial_images,
+                    Err(e) => {
+                        // if error is Io(Kind(UnexpectedEof)), then write to file as new hashmap
+                        if e.to_string().contains("unexpected end of file") {
+                            HashMap::new()
+                        } else {
+                            return Err(anyhow!("Failed to deserialize testimonials cache: {}", e));
+                        }
+                    }
+                };
+            // append new calibration to cache
+            for image in testimonial_images.into_iter() {
+                let key = MessageHasher::new().hash_string(&image);
+                let value =
+                    bincode::serialize(&image).expect("Failed to serialize testimonial image");
+                db_testimonial_images.insert(key, value);
+            }
+
+            let ser_testimonial_images = bincode::serialize(&db_testimonial_images)?;
+            std::fs::write(cache_path, ser_testimonial_images)?;
+            info!("Wrote testimonial images to existing cache");
+        }
+        FileType::ContentTypeImages => {
+            // read all files from directory
+            let dir = std::fs::read_dir(PathBuf::from(&path))
+                .expect("Failed to read content type images directory");
+
+            // read directory after renaming and create JSON for
+            // data/testimonial_images/testimonial_images.json
+            let mut content_type_images = Vec::<String>::new();
+
+            for file in dir {
+                let file = file.expect("Failed to read content type image DirEntry");
+                let file_name_os = file.file_name();
+
+                let file_name = file_name_os.to_str().unwrap().to_string();
+
+                if file_name == ".DS_Store" {
+                    continue;
+                };
+
+                // check if name contains a space, if so concat with -
+                let file_name = if file_name.contains(' ') {
+                    file_name.replace(' ', "-")
+                } else {
+                    file_name
+                };
+
+                debug!("File name: {:?}", file_name);
+                let gcloud_url = format!(
+                    "{}images/content_type_images/{}",
+                    GCLOUD_STORAGE_PREFIX, file_name
+                );
+                info!("Content type image: {}", gcloud_url);
+                content_type_images.push(gcloud_url)
+            }
+
+            let content_type_images_json = serde_json::to_string(&content_type_images)?;
+
+            let database = std::env::current_dir()
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .to_string()
+                + "/data/content_type_images";
+
+            let content_type_images_path = format!("{}/content_type_images.json", database);
+            match std::fs::write(content_type_images_path, content_type_images_json) {
+                Ok(_) => {
+                    info!("Successfully wrote content_type_images.json");
+                }
+                Err(e) => {
+                    error!("Failed to write content_type_images.json: {}", e);
+                }
+            }
+
+            // Read the contents of the testimonials cache into a Vec<u8>
+            let cache_path = std::env::current_dir()
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .to_string()
+                + "/cache/content_type_images.bin";
+            let mut cache_file =
+                File::open(&cache_path).expect("Failed to open content type images cache");
+            let mut cache_buf = Vec::new();
+            cache_file
+                .read_to_end(&mut cache_buf)
+                .expect("Failed to read content type images cache");
+
+            let mut db_content_type_images =
+                match bincode::deserialize::<HashMap<u64, Vec<u8>>>(&cache_buf) {
+                    Ok(db_content_type_images) => db_content_type_images,
+                    Err(e) => {
+                        // if error is Io(Kind(UnexpectedEof)), then write to file as new hashmap
+                        if e.to_string().contains("unexpected end of file") {
+                            HashMap::new()
+                        } else {
+                            return Err(anyhow!(
+                                "Failed to deserialize content type images cache: \
+                            {}",
+                                e
+                            ));
+                        }
+                    }
+                };
+            // append new calibration to cache
+            for image in content_type_images.into_iter() {
+                let key = MessageHasher::new().hash_string(&image);
+                let value =
+                    bincode::serialize(&image).expect("Failed to serialize testimonial image");
+                db_content_type_images.insert(key, value);
+            }
+
+            let ser_content_type_images = bincode::serialize(&db_content_type_images)?;
+            std::fs::write(cache_path, ser_content_type_images)?;
+            info!("Wrote content type images to existing cache");
+        }
+        FileType::CategoryImages => {
+            // read all files from directory
+            let dir = std::fs::read_dir(PathBuf::from(&path))
+                .expect("Failed to read category images directory");
+
+            // read directory after renaming and create JSON for
+            // data/testimonial_images/testimonial_images.json
+            let mut category_images = Vec::<String>::new();
+
+            for file in dir {
+                let file = file.expect("Failed to read category image DirEntry");
+                let file_name_os = file.file_name();
+
+                let file_name = file_name_os.to_str().unwrap().to_string();
+
+                if file_name == ".DS_Store" {
+                    continue;
+                };
+
+                // check if name contains a space, if so concat with -
+                let file_name = if file_name.contains(' ') {
+                    file_name.replace(' ', "-")
+                } else {
+                    file_name
+                };
+
+                debug!("File name: {:?}", file_name);
+                let gcloud_url = format!(
+                    "{}images/category_images/{}",
+                    GCLOUD_STORAGE_PREFIX, file_name
+                );
+                info!("Category image: {}", gcloud_url);
+                category_images.push(gcloud_url)
+            }
+
+            let category_images_json = serde_json::to_string(&category_images)?;
+
+            let database = std::env::current_dir()
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .to_string()
+                + "/data/category_images";
+
+            let category_images_path = format!("{}/category_images.json", database);
+            match std::fs::write(category_images_path, category_images_json) {
+                Ok(_) => {
+                    info!("Successfully wrote content_type_images.json");
+                }
+                Err(e) => {
+                    error!("Failed to write content_type_images.json: {}", e);
+                }
+            }
+
+            // Read the contents of the category images cache into a Vec<u8>
+            let cache_path = std::env::current_dir()
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .to_string()
+                + "/cache/category_images.bin";
+            let mut cache_file =
+                File::open(&cache_path).expect("Failed to open category images cache");
+            let mut cache_buf = Vec::new();
+            cache_file
+                .read_to_end(&mut cache_buf)
+                .expect("Failed to read category images cache");
+
+            let mut db_category_images =
+                match bincode::deserialize::<HashMap<u64, Vec<u8>>>(&cache_buf) {
+                    Ok(db_category_images) => db_category_images,
+                    Err(e) => {
+                        // if error is Io(Kind(UnexpectedEof)), then write to file as new hashmap
+                        if e.to_string().contains("unexpected end of file") {
+                            HashMap::new()
+                        } else {
+                            return Err(anyhow!(
+                                "Failed to deserialize category images cache: \
+                            {}",
+                                e
+                            ));
+                        }
+                    }
+                };
+            // append new category image to cache
+            for image in category_images.into_iter() {
+                let key = MessageHasher::new().hash_string(&image);
+                let value = bincode::serialize(&image).expect("Failed to serialize category image");
+                db_category_images.insert(key, value);
+            }
+
+            let ser_category_images = bincode::serialize(&db_category_images)?;
+            std::fs::write(cache_path, ser_category_images)?;
+            info!("Wrote category images to existing cache");
         }
     }
 

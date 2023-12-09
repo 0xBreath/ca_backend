@@ -1,4 +1,4 @@
-# Understanding the Point of Human Experience
+# Understanding the Point of the Human Experience
 
 **_\(and why there's nothing serious going on here\)_**
 
