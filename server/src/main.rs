@@ -63,6 +63,10 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .wrap(cors)
             .service(
+              web::scope("/api/public")
+                    .service(load_free_state)
+            )
+            .service(
                 web::scope("/api")
                     .wrap(auth)
                     .service(articles)
@@ -126,6 +130,16 @@ async fn load_state(payload: web::Payload) -> Result<HttpResponse, Error> {
     let client = SQUARE_CLIENT.lock().await;
     let handler = ServerHandler::new(client);
     let res = handler.load_state(payload).await?;
+    Ok(HttpResponse::Ok().json(res))
+}
+
+/// Not protected behind auth
+#[get("/load_state")]
+async fn load_free_state() -> Result<HttpResponse, Error> {
+    debug!("Loading free state...");
+    let client = SQUARE_CLIENT.lock().await;
+    let handler = ServerHandler::new(client);
+    let res = handler.load_free_state().await?;
     Ok(HttpResponse::Ok().json(res))
 }
 

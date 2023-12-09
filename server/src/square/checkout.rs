@@ -20,7 +20,7 @@ pub struct SubscriptionCheckoutBuilder {
     pub location_id: String,
     pub subscription_plan_id: String,
     pub redirect_url: String,
-    pub buyer_email: String,
+    pub buyer_email: Option<String>,
 }
 
 pub struct CoachingCheckoutBuilder {
@@ -55,10 +55,13 @@ impl CheckoutRequest {
                 },
                 location_id: request.location_id,
             }),
-            pre_populated_data: Some(PrePopulatedData {
-                buyer_email: Some(request.buyer_email),
-                ..Default::default()
-            }),
+            pre_populated_data: match request.buyer_email {
+                Some(email) => Some(PrePopulatedData {
+                    buyer_email: Some(email),
+                    ..Default::default()
+                }),
+                None => None,
+            },
             checkout_options: Some(CheckoutOptions {
                 subscription_plan_id: request.subscription_plan_id,
                 redirect_url: Some(request.redirect_url),

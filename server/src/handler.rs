@@ -35,6 +35,7 @@ impl<'a> ServerHandler<'a> {
         ServerHandler { client }
     }
 
+    /// Open all to all users
     pub fn handle_content_type_images() -> Result<Vec<String>> {
         let cache_path = std::env::current_dir()
           .unwrap()
@@ -63,6 +64,7 @@ impl<'a> ServerHandler<'a> {
         Ok(images)
     }
 
+    /// Open all to all users
     pub fn handle_category_images() -> Result<Vec<String>> {
         let cache_path = std::env::current_dir()
           .unwrap()
@@ -89,6 +91,16 @@ impl<'a> ServerHandler<'a> {
             images.push(image);
         }
         Ok(images)
+    }
+
+    pub fn handle_free_articles() -> Result<Vec<Article>> {
+        let articles = Self::handle_articles()?;
+        Ok(articles.into_iter().map(|mut article| {
+            if article.premium {
+                article.data = String::new();
+            }
+            article
+        }).collect::<Vec<Article>>())
     }
 
     pub fn handle_articles() -> Result<Vec<Article>> {
@@ -118,6 +130,7 @@ impl<'a> ServerHandler<'a> {
         Ok(articles)
     }
 
+    /// Open all to all users
     pub fn handle_calibrations() -> Result<Vec<Calibration>> {
         let cache_path = std::env::current_dir()
             .unwrap()
@@ -145,6 +158,7 @@ impl<'a> ServerHandler<'a> {
         Ok(calibrations)
     }
 
+    /// Open all to all users
     pub fn handle_testimonials() -> Result<Vec<Testimonial>> {
         let cache_path = std::env::current_dir()
             .unwrap()
@@ -172,6 +186,7 @@ impl<'a> ServerHandler<'a> {
         Ok(testimonials)
     }
 
+    /// Open all to all users
     pub fn handle_testimonial_images() -> Result<Vec<String>> {
         let cache_path = std::env::current_dir()
             .unwrap()
@@ -197,6 +212,7 @@ impl<'a> ServerHandler<'a> {
         Ok(images)
     }
 
+    /// Restricted to authenticated request
     pub async fn handle_subscribe(&self, mut payload: web::Payload) -> Result<CheckoutInfo> {
         let mut body = web::BytesMut::new();
         while let Some(chunk) = payload.next().await {
@@ -211,7 +227,7 @@ impl<'a> ServerHandler<'a> {
 
         let buyer_email = serde_json::from_slice::<UserEmailRequest>(&body)?;
         debug!("Checkout user email: {:?}", &buyer_email);
-        let res = self.client.subscribe_checkout(buyer_email).await?;
+        let res = self.client.subscribe_checkout(Some(buyer_email)).await?;
 
         if let SquareResponse::Success(subscribe) = res {
             debug!("Subscription checkout: {:?}", &subscribe);
@@ -222,6 +238,7 @@ impl<'a> ServerHandler<'a> {
         }
     }
 
+    /// Open to all users
     pub async fn handle_user_profile(&self, mut payload: web::Payload) -> Result<UserProfile> {
         let mut body = web::BytesMut::new();
         while let Some(chunk) = payload.next().await {
@@ -241,6 +258,7 @@ impl<'a> ServerHandler<'a> {
         Ok(info)
     }
 
+    /// Restricted to authenticated request
     pub async fn handle_cancel_subscription(
         &self,
         mut payload: web::Payload,
@@ -268,7 +286,52 @@ impl<'a> ServerHandler<'a> {
         }
     }
 
-    pub async fn load_state(&self, mut payload: web::Payload) -> Result<LoadState> {
+    pub async fn load_free_state(&self) -> Result<LoadState> {
+        let content_type_images = Self::handle_content_type_images()?;
+        debug!("Fetched content type images");
+        let category_images = Self::handle_category_images()?;
+        debug!("Fetched category images");
+        let articles = Self::handle_free_articles()?;
+        debug!("Fetched articles");
+        let calibrations = Self::handle_calibrations()?;
+        debug!("Fetched calibrations");
+        let testimonials = Self::handle_testimonials()?;
+        debug!("Fetched testimonials");
+        let testimonial_images = Self::handle_testimonial_images()?;
+        debug!("Fetched testimonial images");
+        let subscribe_checkout = match self.client.subscribe_checkout(None)
+          .await? {
+            SquareResponse::Success(subscribe) => subscribe,
+            SquareResponse::Error(err) => {
+                error!(
+                    "Failed to fetch subscribe checkout in state dump: {:?}",
+                    &err
+                );
+                return Err(actix_web::error::ErrorBadRequest(
+                    "Failed to fetch subscribe checkout in
+                    state dump",
+                ));
+            }
+        };
+        debug!("Fetched subscribe checkout");
+
+        Ok(LoadState {
+            content_type_images,
+            category_images,
+            articles,
+            calibrations,
+            testimonials,
+            testimonial_images,
+            subscribe_checkout,
+            user_profile: Default::default(),
+        })
+    }
+
+    /// Filtered responses if not subscribed
+    pub async fn load_state(
+        &self,
+        mut payload: web::Payload,
+    ) -> Result<LoadState> {
         let mut body = web::BytesMut::new();
         while let Some(chunk) = payload.next().await {
             let chunk = chunk?;
@@ -283,18 +346,19 @@ impl<'a> ServerHandler<'a> {
         let email = user_email.email.clone();
 
         let content_type_images = Self::handle_content_type_images()?;
-        info!("Fetch content type images");
+        debug!("Fetched content type images");
         let category_images = Self::handle_category_images()?;
-        info!("Fetched category images");
+        debug!("Fetched category images");
         let articles = Self::handle_articles()?;
-        info!("Fetched articles");
+        debug!("Fetched articles");
         let calibrations = Self::handle_calibrations()?;
-        info!("Fetched calibrations");
+        debug!("Fetched calibrations");
         let testimonials = Self::handle_testimonials()?;
-        info!("Fetched testimonials");
+        debug!("Fetched testimonials");
         let testimonial_images = Self::handle_testimonial_images()?;
-        info!("Fetched testimonial images");
-        let subscribe_checkout = match self.client.subscribe_checkout(user_email.clone()).await? {
+        debug!("Fetched testimonial images");
+        let subscribe_checkout = match self.client.subscribe_checkout(Some(user_email.clone()))
+          .await? {
             SquareResponse::Success(subscribe) => subscribe,
             SquareResponse::Error(err) => {
                 error!(
@@ -307,12 +371,12 @@ impl<'a> ServerHandler<'a> {
                 ));
             }
         };
-        info!("Fetched subscribe checkout");
+        debug!("Fetched subscribe checkout");
         let user_profile = self.client.get_user_profile(user_email).await?;
-        info!("Fetched user profile");
+        debug!("Fetched user profile");
         // cancel subscription is the only endpoint that isn't loaded up front
 
-        info!("Loaded state for {}", email);
+        debug!("Loaded state for {}", email);
         Ok(LoadState {
             content_type_images,
             category_images,

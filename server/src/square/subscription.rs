@@ -130,7 +130,7 @@ pub struct UserSubscriptionInfo {
     pub canceled_date: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct UserProfile {
     pub customer: Option<CustomerInfo>,
     pub subscription_info: Option<SubscriptionInfo>,

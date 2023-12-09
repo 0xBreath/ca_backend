@@ -580,7 +580,7 @@ impl SquareClient {
 
     pub async fn subscribe_checkout(
         &self,
-        user_email: UserEmailRequest,
+        user_email: Option<UserEmailRequest>,
     ) -> Result<SquareResponse<CheckoutInfo>, Error> {
         let checkout_endpoint = self.base_url.clone() + "v2/online-checkout/payment-links";
         match self.get_subscription_catalog().await? {
@@ -613,7 +613,10 @@ impl SquareClient {
                                     location_id,
                                     subscription_plan_id,
                                     redirect_url: self.redirect_url.clone(),
-                                    buyer_email: user_email.email,
+                                    buyer_email: match user_email {
+                                        Some(request) => Some(request.email),
+                                        None => None,
+                                    },
                                 },
                             ))
                             .send()
