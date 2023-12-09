@@ -20,7 +20,7 @@ pub const GCLOUD_STORAGE_PREFIX: &str = "https://storage.googleapis.com/consciou
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct LoadState {
-    pub learn_images: Vec<String>,
+    pub content_type_images: Vec<String>,
     pub articles: Vec<Article>,
     pub calibrations: Vec<Calibration>,
     pub testimonials: Vec<Testimonial>,
@@ -38,7 +38,7 @@ impl<'a> ServerHandler<'a> {
         ServerHandler { client }
     }
 
-    pub async fn handle_learn_images() -> Result<Vec<String>> {
+    pub async fn handle_content_type_images() -> Result<Vec<String>> {
         let config = ClientConfig::default()
             .with_auth()
             .await
@@ -48,7 +48,7 @@ impl<'a> ServerHandler<'a> {
         let objects = client
             .list_objects(&ListObjectsRequest {
                 bucket: GCLOUD_BUCKET.to_string(),
-                prefix: Some("images/learn".to_string()),
+                prefix: Some("images/content_types".to_string()),
                 ..Default::default()
             })
             .await
@@ -269,16 +269,16 @@ impl<'a> ServerHandler<'a> {
         let user_email = serde_json::from_slice::<UserEmailRequest>(&body)?;
         let email = user_email.email.clone();
 
-        let learn_images = Self::handle_learn_images().await?;
-        debug!("Fetched learn images");
+        let content_type_images = Self::handle_content_type_images().await?;
+        info!("Fetch content type images");
         let articles = Self::handle_articles()?;
-        debug!("Fetched articles");
+        info!("Fetched articles");
         let calibrations = Self::handle_calibrations()?;
-        debug!("Fetched calibrations");
+        info!("Fetched calibrations");
         let testimonials = Self::handle_testimonials()?;
-        debug!("Fetched testimonials");
+        info!("Fetched testimonials");
         let testimonial_images = Self::handle_testimonial_images().await?;
-        debug!("Fetched testimonial images");
+        info!("Fetched testimonial images");
         let subscribe_checkout = match self.client.subscribe_checkout(user_email.clone()).await? {
             SquareResponse::Success(subscribe) => subscribe,
             SquareResponse::Error(err) => {
@@ -292,14 +292,14 @@ impl<'a> ServerHandler<'a> {
                 ));
             }
         };
-        debug!("Fetched subscribe checkout");
+        info!("Fetched subscribe checkout");
         let user_profile = self.client.get_user_profile(user_email).await?;
-        debug!("Fetched user profile");
+        info!("Fetched user profile");
         // cancel subscription is the only endpoint that isn't loaded up front
 
-        info!("Loading state for {}", email);
+        info!("Loaded state for {}", email);
         Ok(LoadState {
-            learn_images,
+            content_type_images,
             articles,
             calibrations,
             testimonials,

@@ -128,9 +128,9 @@ async fn load_state(payload: web::Payload) -> Result<HttpResponse, Error> {
     Ok(HttpResponse::Ok().json(res))
 }
 
-#[get("/learn_images")]
+#[get("/content_type_images")]
 async fn learn_images() -> Result<HttpResponse, Error> {
-    let images = ServerHandler::handle_learn_images().await?;
+    let images = ServerHandler::handle_content_type_images().await?;
     Ok(HttpResponse::Ok().json(images))
 }
 
